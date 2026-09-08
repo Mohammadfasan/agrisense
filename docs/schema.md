@@ -407,4 +407,322 @@ recorded inline, no past result is reproducible or attributable.
 | `maxPrice` | Number | |
 | `modalPrice` | Number | Most frequent — primary series input |
 | `volumeKg` | Number | Supply signal for the LSTM |
-| `unit` |
+| `unit` | String | Default `kg` |
+| `source` | Enum | `harti` \| `manual` \| `scraped` |
+| `enteredBy` | ObjectId | Manual entries |
+| `isVerified` | Boolean | |
+| `isOutlier` | Boolean | Flagged by ingestion, excluded from training |
+
+**Indexes**
+```js
+{ marketId: 1, cropId: 1, date: -1 }      // unique compound — series retrieval
+{ cropId: 1, date: -1 }                   // cross-market comparison
+{ date: -1 }                              // daily ingestion checks
+```
+
+**On the unique compound index.** One observation per market, crop, and day.
+Re-running ingestion is then an upsert rather than a duplicate — the same
+idempotency principle applied to the sync protocol, applied here to a scheduled
+job.
+
+**On `isOutlier`.** A mis-keyed price of 2,000 instead of 200 would distort the
+forecast for weeks. Flagging rather than deleting keeps the audit trail while
+excluding the value from training.
+
+---
+
+## 12. `priceForecasts`
+
+| Field | Type | Notes |
+|---|---|---|
+| `cropId` | ObjectId | |
+| `marketId` | ObjectId | |
+| `generatedAt` | Date | |
+| `horizonDays` | Number | 7 or 14 |
+| `predictions` | [Object] | `{ date, price, lower, upper }` |
+| `model` | Enum | `prophet` \| `lstm` \| `ensemble` |
+| `modelVersion` | String | |
+| `mape` | Number | Validation error at generation time |
+| `trend` | Enum | `rising` \| `falling` \| `stable` |
+| `advisory` | Locale | Generated recommendation text |
+| `dataPointsUsed` | Number | Series length — a confidence proxy |
+
+**Indexes**
+```js
+{ cropId: 1, marketId: 1, generatedAt: -1 }
+{ generatedAt: -1 }                       // staleness monitoring
+```
+
+**Why `lower` and `upper` are not optional.** A point forecast presented alone
+implies a precision the model does not have, to a user deciding when to sell.
+Making the interval part of the stored shape prevents a UI from ever rendering
+the point estimate in isolation.
+
+---
+
+## 13. `priceAlerts`
+
+| Field | Type | Notes |
+|---|---|---|
+| `farmerId` | ObjectId | |
+| `cropId` | ObjectId | |
+| `marketId` | ObjectId | Null = any market |
+| `condition` | Enum | `above` \| `below` |
+| `threshold` | Number | LKR |
+| `isActive` | Boolean | |
+| `lastTriggeredAt` | Date | Debounce guard |
+| `triggerCount` | Number | |
+
+**Indexes**
+```js
+{ farmerId: 1, isActive: 1 }
+{ cropId: 1, isActive: 1 }          // daily evaluation scan
+```
+
+---
+
+## 14. `outbreaks`
+
+| Field | Type | Notes |
+|---|---|---|
+| `diseaseId` | ObjectId | |
+| `cropId` | ObjectId | |
+| `district` | String | |
+| `centroid` | GeoJSON Point | Cluster centre |
+| `radiusKm` | Number | |
+| `affectedArea` | GeoJSON Polygon | Convex hull of member scans |
+| `scanIds` | [ObjectId] | Cluster members |
+| `scanCount` | Number | |
+| `firstDetectedAt` | Date | Earliest member scan |
+| `lastScanAt` | Date | |
+| `growthRate` | Number | Scans per day |
+| `riskScore` | Number | 0–100 composite |
+| `riskFactors` | Object | `{ density, growth, weather, cropDensity }` |
+| `severity` | Enum | `watch` \| `warning` \| `critical` |
+| `status` | Enum | `active` \| `acknowledged` \| `contained` \| `resolved` |
+| `acknowledgedBy` | ObjectId | Officer |
+| `advisorySent` | Boolean | |
+| `farmersNotified` | Number | |
+
+**Indexes**
+```js
+{ district: 1, status: 1, riskScore: -1 }        // officer dashboard
+{ centroid: '2dsphere' }
+{ diseaseId: 1, firstDetectedAt: -1 }            // historical patterns
+```
+
+**On storing `riskFactors` as a breakdown.** A composite score alone is not
+actionable — an officer needs to know whether a cluster scored highly because of
+density or because conditions favour spread. Persisting the components makes the
+score explainable rather than oracular.
+
+---
+
+## 15. `advisories`
+
+| Field | Type | Notes |
+|---|---|---|
+| `outbreakId` | ObjectId | Null for general advisories |
+| `sentBy` | ObjectId | Officer |
+| `title` | Locale | |
+| `message` | Locale | |
+| `targetType` | Enum | `district` \| `ds_division` \| `radius` \| `crop` |
+| `targetDistrict` | String | |
+| `targetCentroid` | GeoJSON Point | Radius targeting |
+| `targetRadiusKm` | Number | |
+| `targetCropIds` | [ObjectId] | |
+| `priority` | Enum | `info` \| `warning` \| `urgent` |
+| `recipientCount` | Number | |
+| `deliveredCount` | Number | |
+| `readCount` | Number | |
+| `channels` | [String] | `push`, `sms`, `in_app` |
+| `expiresAt` | Date | |
+
+**Indexes**
+```js
+{ targetDistrict: 1, createdAt: -1 }
+{ sentBy: 1, createdAt: -1 }
+{ expiresAt: 1 }
+```
+
+---
+
+## 16. `syncLog`
+
+Idempotency ledger for client mutations.
+
+| Field | Type | Notes |
+|---|---|---|
+| `clientId` | String | UUID from client |
+| `farmerId` | ObjectId | |
+| `deviceId` | String | |
+| `entity` | String | `scan` \| `plot` \| `activity` \| `planting` |
+| `operation` | Enum | `create` \| `update` \| `delete` |
+| `serverId` | ObjectId | Resulting document |
+| `result` | Enum | `applied` \| `conflict` \| `rejected` |
+| `conflictResolution` | String | Rule applied |
+| `appliedAt` | Date | |
+
+**Indexes**
+```js
+{ clientId: 1 }                                   // unique — the whole point
+{ farmerId: 1, appliedAt: -1 }
+{ appliedAt: 1 }, { expireAfterSeconds: 7776000 } // 90-day TTL
+```
+
+**This collection is what makes retries safe.** A mutation arriving twice — from
+a client retry, a duplicated Background Sync event, or a user reinstalling —
+finds its `clientId` already recorded and is acknowledged without reapplication.
+Without it, a farmer with flaky connectivity would accumulate duplicate scans.
+
+**Why a 90-day TTL is sufficient.** A client that has not synced in 90 days
+performs a full resync rather than a delta, so ledger entries older than that
+have no remaining purpose.
+
+---
+
+## 17. `modelMetrics`
+
+Drift and performance tracking.
+
+| Field | Type | Notes |
+|---|---|---|
+| `modelType` | Enum | `disease` \| `forecast` |
+| `modelVersion` | String | |
+| `periodStart` | Date | |
+| `periodEnd` | Date | |
+| `totalPredictions` | Number | |
+| `avgConfidence` | Number | |
+| `lowConfidenceRate` | Number | Proportion below threshold |
+| `reviewedCount` | Number | |
+| `correctedCount` | Number | |
+| `correctionRate` | Number | **Primary drift signal** |
+| `classDistribution` | Object | Predictions per class |
+| `perClassCorrectionRate` | Object | Which classes degrade first |
+
+**Indexes**
+```js
+{ modelType: 1, modelVersion: 1, periodStart: -1 }
+```
+
+**Why per-class correction rate matters more than the aggregate.** Overall
+accuracy can hold steady while one class quietly collapses — a disease whose
+field presentation differs most from the training imagery. The aggregate hides
+that; the breakdown surfaces it.
+
+---
+
+## Aggregation Pipelines
+
+### Officer dashboard — disease counts by district
+
+```js
+[
+  { $match: {
+      district: officerDistrict,
+      status: 'completed',
+      capturedAt: { $gte: fourteenDaysAgo }
+  }},
+  { $group: {
+      _id: '$predictedDiseaseId',
+      count: { $sum: 1 },
+      avgConfidence: { $avg: '$confidence' },
+      lastSeen: { $max: '$capturedAt' }
+  }},
+  { $lookup: {
+      from: 'diseases', localField: '_id',
+      foreignField: '_id', as: 'disease'
+  }},
+  { $sort: { count: -1 } }
+]
+```
+
+### Model drift — correction rate by month
+
+```js
+[
+  { $match: { reviewStatus: { $in: ['confirmed', 'corrected'] } } },
+  { $group: {
+      _id: {
+        month: { $dateToString: { format: '%Y-%m', date: '$capturedAt' } },
+        version: '$modelVersion'
+      },
+      reviewed:  { $sum: 1 },
+      corrected: { $sum: { $cond: [{ $eq: ['$reviewStatus', 'corrected'] }, 1, 0] } }
+  }},
+  { $addFields: { correctionRate: { $divide: ['$corrected', '$reviewed'] } } },
+  { $sort: { '_id.month': 1 } }
+]
+```
+
+### Nearby markets with net price
+
+```js
+[
+  { $geoNear: {
+      near: plotCentroid,
+      distanceField: 'distanceM',
+      maxDistance: 100000,
+      spherical: true
+  }},
+  { $lookup: {
+      from: 'marketPrices',
+      let: { mId: '$_id' },
+      pipeline: [
+        { $match: { $expr: { $and: [
+            { $eq: ['$marketId', '$$mId'] },
+            { $eq: ['$cropId', cropId] },
+            { $gte: ['$date', yesterday] }
+        ]}}},
+        { $sort: { date: -1 } },
+        { $limit: 1 }
+      ],
+      as: 'price'
+  }},
+  { $unwind: '$price' },
+  { $addFields: {
+      transportCost: { $multiply: [
+        { $divide: ['$distanceM', 1000] }, transportRatePerKm, quantityKg ] },
+      netPrice: { $subtract: [
+        { $multiply: ['$price.modalPrice', quantityKg] },
+        { $multiply: [{ $divide: ['$distanceM', 1000] },
+                      transportRatePerKm, quantityKg ] }
+      ]}
+  }},
+  { $sort: { netPrice: -1 } }
+]
+```
+
+---
+
+## Seed Data Requirements
+
+| Collection | Records | Source |
+|---|---|---|
+| `crops` | 10 | Manual, trilingual |
+| `diseases` | 15 | Matched to ML label set |
+| `markets` | 6 | Sri Lankan economic centres |
+| `marketPrices` | ~2,000 | 12 months × 5 crops × 4 markets |
+| `farmers` | 20 | Generated demo accounts |
+| `plots` | 40 | Distributed across 3 districts |
+| `scans` | 200 | Seeded to trigger outbreak clustering |
+
+**Seed the scan data deliberately.** Cluster a subset within a 5 km radius over a
+7-day window so that outbreak detection has something to find during a
+demonstration. A correct algorithm with no qualifying data looks identical to a
+broken one.
+
+---
+
+## Migration Strategy
+
+| Change | Approach |
+|---|---|
+| Add optional field | No migration; absent reads as undefined |
+| Add required field | Backfill script with default, then enforce |
+| Rename field | Dual-write, backfill, cut over, drop |
+| Change type | New field, migrate, drop old |
+| Add index | Build in background on the deployed instance |
+
+Migration scripts live in `server/src/migrations/`, named `NNN_description.ts`,
+applied in order and recorded in a `migrations` collection.
