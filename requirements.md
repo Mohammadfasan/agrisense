@@ -1,11 +1,9 @@
 # AgriSense — Requirements Specification
 
 **Project:** AgriSense — Crop Disease Detection & Market Price Advisory Platform  
-**Author:** [உங்க பேர்]  
-**Supervisor:** [supervisor பேர்]  
+**Author:** [Fasan]  
 **Degree:** BSc (Hons) in Information & Communication Technology  
-**Version:** 1.0  
-**Last updated:** 2026-09-09
+
 
 ---
 
