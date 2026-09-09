@@ -1,0 +1,45 @@
+[project]
+name = "agrisense-ml"
+version = "0.1.0"
+description = "AgriSense inference service"
+# The container runs 3.11; the floor is set here so nothing 3.12-only is used.
+requires-python = ">=3.11"
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [".venv", "models", "__pycache__"]
+
+[tool.ruff.lint]
+select = [
+  "E",    # pycodestyle errors
+  "W",    # pycodestyle warnings
+  "F",    # pyflakes
+  "I",    # isort
+  "B",    # flake8-bugbear
+  "C4",   # flake8-comprehensions
+  "UP",   # pyupgrade
+  "ARG",  # unused arguments
+  "SIM",  # flake8-simplify
+  "PTH",  # prefer pathlib
+  "RUF",
+]
+ignore = [
+  # Formatting is black's job.
+  "E501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Star-free re-exports in package initialisers.
+"__init__.py" = ["F401"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

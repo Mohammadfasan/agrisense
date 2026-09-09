@@ -1,0 +1,21 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "baseUrl": "./src",
+    "types": ["node"],
+    "paths": {
+      "@config": ["config/index.ts"],
+      "@config/*": ["config/*"],
+      "@modules": ["modules/index.ts"],
+      "@modules/*": ["modules/*"],
+      "@shared": ["shared/index.ts"],
+      "@shared/*": ["shared/*"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

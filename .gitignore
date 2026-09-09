@@ -1,0 +1,50 @@
+# dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# build output
+dist/
+build/
+*.tsbuildinfo
+
+# env
+.env
+.env.*
+!.env.example
+
+# logs
+logs/
+*.log
+npm-debug.log*
+
+# test / coverage
+coverage/
+.nyc_output/
+
+# editors & OS
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# python (ml-service)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# trained model artifacts - ship these through an artifact store, not git
+ml-service/models/*/v*/
+ml-service/models/**/*.onnx
+ml-service/models/**/*.pkl
+ml-service/models/**/*.pt
+ml-service/models/**/*.h5
+
+# vite / pwa
+client/dev-dist/
+
+# docker volumes
+.docker-data/

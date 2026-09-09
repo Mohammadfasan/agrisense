@@ -1,0 +1,9 @@
+{
+  "version": "v1",
+  "artifact": "weights.onnx",
+  "trained_at": "2026-01-14T09:12:00Z",
+  "metrics": {
+    "accuracy": 0.0,
+    "note": "Placeholder manifest. No artifact has been trained or shipped yet."
+  }
+}

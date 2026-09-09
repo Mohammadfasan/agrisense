@@ -1,0 +1,59 @@
+{
+  "name": "agrisense",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AgriSense \u2014 precision agriculture platform (monorepo)",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "engines": {
+    "node": ">=20.0.0 <21 || >=22"
+  },
+  "scripts": {
+    "dev": "npm run dev --workspace server",
+    "build": "npm run build --workspaces --if-present",
+    "start": "npm run start --workspace server",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "prepare": "husky",
+    "dev:client": "npm run dev --workspace client",
+    "dev:server": "npm run dev --workspace server",
+    "lint:py": "node scripts/py-tool.mjs ruff check ml-service",
+    "format:py": "node scripts/py-tool.mjs black ml-service",
+    "test:py": "node scripts/py-tool.mjs pytest ml-service",
+    "dev:ml": "node scripts/py-tool.mjs uvicorn --app-dir ml-service app.main:app --reload --port 8000"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,cjs,mjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ],
+    "ml-service/**/*.py": [
+      "node scripts/py-tool.mjs black",
+      "node scripts/py-tool.mjs ruff check --fix"
+    ]
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.13.0",
+    "@types/node": "^20.17.6",
+    "eslint": "^9.13.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.16",
+    "globals": "^15.11.0",
+    "husky": "^9.1.6",
+    "lint-staged": "^15.2.10",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.12.2"
+  }
+}

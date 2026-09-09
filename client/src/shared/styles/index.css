@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    /* Prevent iOS from auto-inflating text in the Tamil/Sinhala scripts. */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-white font-sans text-gray-900 antialiased;
+  }
+
+  /* Sinhala and Tamil glyphs sit taller than Latin; give them room. */
+  :lang(si),
+  :lang(ta) {
+    line-height: 1.75;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex min-h-touch min-w-touch items-center justify-center gap-2
+      rounded-lg px-4 text-sm font-medium transition-colors
+      focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2
+      disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply btn bg-primary text-white hover:bg-primary-700 focus-visible:outline-primary;
+  }
+
+  .btn-danger {
+    @apply btn bg-danger text-white hover:bg-danger-700 focus-visible:outline-danger;
+  }
+
+  .btn-ghost {
+    @apply btn text-muted-700 hover:bg-muted-100;
+  }
+}
