@@ -10,6 +10,8 @@
     "paths": {
       "@config": ["config/index.ts"],
       "@config/*": ["config/*"],
+      "@models": ["models/index.ts"],
+      "@models/*": ["models/*"],
       "@modules": ["modules/index.ts"],
       "@modules/*": ["modules/*"],
       "@shared": ["shared/index.ts"],

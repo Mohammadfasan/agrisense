@@ -11,6 +11,31 @@ export const ErrorCode = {
   TOO_MANY_REQUESTS: 'TOO_MANY_REQUESTS',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
   SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
+
+  // --- Authentication ---
+  /** The submitted OTP does not match the outstanding code. */
+  OTP_INVALID: 'OTP_INVALID',
+  /** No unconsumed, unexpired code exists for this phone. */
+  OTP_EXPIRED: 'OTP_EXPIRED',
+  /** The code was burned by too many wrong guesses. */
+  OTP_ATTEMPTS_EXCEEDED: 'OTP_ATTEMPTS_EXCEEDED',
+  /** Too many codes requested for this phone within the window. */
+  OTP_RATE_LIMITED: 'OTP_RATE_LIMITED',
+  /** Access or refresh token is missing, malformed, or badly signed. */
+  TOKEN_INVALID: 'TOKEN_INVALID',
+  /** Token was well-formed but past its expiry. */
+  TOKEN_EXPIRED: 'TOKEN_EXPIRED',
+  /**
+   * A refresh token that had already been rotated was presented again. Treated
+   * as theft: the whole token family is revoked. See `docs/schema.md` §3.
+   */
+  TOKEN_REUSED: 'TOKEN_REUSED',
+  /** Token belongs to a family that has been revoked. */
+  TOKEN_REVOKED: 'TOKEN_REVOKED',
+  /** Phone is verified but no farmer exists and no profile was supplied. */
+  PROFILE_REQUIRED: 'PROFILE_REQUIRED',
+  /** The account is deactivated or soft-deleted. */
+  ACCOUNT_INACTIVE: 'ACCOUNT_INACTIVE',
 } as const;
 
 export type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode];

@@ -9,16 +9,16 @@ npm run build --workspace client
 ```
 
 `/api` is proxied to `http://localhost:4000` in development, so there is no CORS
-hop and `VITE_API_BASE_URL` can stay empty.
+hop and `VITE_API_URL` can stay empty.
 
 ## Layout
 
 ```
 src/
 ├── app/          Shell: router, providers, layout, service worker
-├── features/     One folder per slice: auth, farm, scan, market, officer
+├── features/     One folder per slice: auth, home, farm, scan, market, profile, officer
 ├── db/           Dexie (IndexedDB): schema.ts, repositories/, sync/
-└── shared/       api client, components, hooks, i18n, styles
+└── shared/       api client, components, hooks, i18n, styles, utils
 ```
 
 `@/` resolves to `src/` (declared in `tsconfig.app.json` and `vite.config.ts` —
@@ -26,6 +26,35 @@ both must agree).
 
 Each feature exposes a barrel `index.ts`; routes import from the barrel, never
 from a file inside another feature.
+
+## Routing
+
+`app/router.tsx`. Guards are pathless layout routes that render `<Outlet />`
+(or `children`), so each wraps a whole subtree:
+
+| Path                                                        | Guard                                                                |
+| ----------------------------------------------------------- | -------------------------------------------------------------------- |
+| `/login`                                                    | public                                                               |
+| `/`, `/plots`, `/plots/:id`, `/scan`, `/market`, `/profile` | `ProtectedRoute`                                                     |
+| `/officer/*`                                                | `ProtectedRoute` → `RoleRoute` (officer, admin) → `DesktopOnlyRoute` |
+
+`ProtectedRoute` passes the original path to `/login` as router state, and
+sign-in returns there. `RoleRoute` is navigation only — the API's `authorise()`
+is the real check.
+
+## API client
+
+`shared/api/client.ts` attaches the access token to every request. On a 401 it
+calls `/auth/refresh` and replays the request once.
+
+- A burst of 401s shares a single refresh. This is required, not an
+  optimisation: the server rotates refresh tokens and revokes the session when
+  one is presented twice.
+- If the server rejects the refresh token (400/401/403), auth state is cleared
+  and the app redirects to `/login`. A network error or 5xx leaves the session
+  alone, so losing signal never signs a farmer out.
+- The refresh call goes through a separate axios instance with no interceptors,
+  so it can never trigger another refresh.
 
 ## Offline model
 
@@ -62,18 +91,42 @@ Font stack is Inter → Noto Sans Tamil → Noto Sans Sinhala. Sinhala and Tamil
 glyphs are taller than Latin, so `:lang(si)` and `:lang(ta)` get extra
 line-height in `shared/styles/index.css`.
 
+## UI primitives
+
+`shared/components` exports `Button` (primary, secondary, danger; `loading`),
+`Input` (always labelled; `hint`, `error`), `Card` (`padding`), `Spinner` and
+`EmptyState`. Import them from the barrel:
+
+```tsx
+import { Button, Card } from '@/shared/components';
+```
+
+Every interactive primitive is at least 44px tall (`min-h-touch`), colours come
+from the `primary`/`danger`/`warning`/`muted` tokens in `tailwind.config.ts`,
+and button styles live in `shared/styles/index.css` so `className="btn-primary"`
+and `<Button>` always match.
+
+In development, **`/dev/components`** renders every primitive in every variant
+and state. The route is not registered in production builds.
+
 ## i18n
 
-`en`, `ta` and `si` catalogues start **empty**. Every `t()` call passes an
-English default as its second argument:
+`en`, `ta` and `si` catalogues hold only the keys translated so far — today,
+the app and auth shells. Every `t()` call still passes an English default as
+its second argument:
 
 ```tsx
 t('farm.title', 'My farms');
 ```
 
-so the UI renders correctly before a single string is translated. The chosen
-language persists to `localStorage` and sets `document.documentElement.lang`,
-which is what drives the per-script line-height.
+so a screen renders correctly before its strings reach the catalogues. A key
+missing from `ta` or `si` falls back to `en`, then to that default.
+
+Language is picked by `i18next-browser-languagedetector`: a choice saved under
+`agrisense.lang` in `localStorage` first, then the device language (`ta-LK`
+resolves to `ta`), then `en`. Every change is written back to the same key.
+The language also sets `document.documentElement.lang`, which is what drives
+the per-script line-height.
 
 ## Bundle
 

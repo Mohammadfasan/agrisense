@@ -1,4 +1,5 @@
 import i18n from 'i18next';
+import LanguageDetector from 'i18next-browser-languagedetector';
 import { initReactI18next } from 'react-i18next';
 
 import en from './locales/en.json';
@@ -13,37 +14,40 @@ export const SUPPORTED_LANGUAGES = [
 
 export type LanguageCode = (typeof SUPPORTED_LANGUAGES)[number]['code'];
 
+/** The key the app has always used, so a choice saved by an earlier build still applies. */
 const STORAGE_KEY = 'agrisense.lang';
 
-function initialLanguage(): LanguageCode {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored && SUPPORTED_LANGUAGES.some((lang) => lang.code === stored)) {
-    return stored as LanguageCode;
-  }
-  const browser = navigator.language.split('-')[0];
-  return SUPPORTED_LANGUAGES.some((lang) => lang.code === browser)
-    ? (browser as LanguageCode)
-    : 'en';
-}
+// Resources are bundled, so init runs synchronously and `i18n.language` is set
+// before the first render.
+void i18n
+  .use(LanguageDetector)
+  .use(initReactI18next)
+  .init({
+    resources: {
+      en: { translation: en },
+      ta: { translation: ta },
+      si: { translation: si },
+    },
+    // Also narrows regional codes: a device set to `ta-LK` gets `ta`.
+    supportedLngs: SUPPORTED_LANGUAGES.map((lang) => lang.code),
+    fallbackLng: 'en',
+    detection: {
+      // A language picked in the app beats the device's. Whatever is resolved
+      // is written back, so every later `changeLanguage` is remembered.
+      order: ['localStorage', 'navigator'],
+      lookupLocalStorage: STORAGE_KEY,
+      caches: ['localStorage'],
+    },
+    interpolation: { escapeValue: false },
+    // Catalogues hold only the keys translated so far. Every `t()` call in the
+    // app passes an English default as its second argument, so a key missing
+    // from every catalogue still renders.
+    parseMissingKeyHandler: (key, defaultValue) => defaultValue ?? key,
+    returnEmptyString: false,
+  });
 
-void i18n.use(initReactI18next).init({
-  resources: {
-    en: { translation: en },
-    ta: { translation: ta },
-    si: { translation: si },
-  },
-  lng: initialLanguage(),
-  fallbackLng: 'en',
-  interpolation: { escapeValue: false },
-  // The catalogues start empty: every `t()` call in the app passes an English
-  // default as its second argument, so the UI renders correctly until strings
-  // are extracted and translated.
-  parseMissingKeyHandler: (key, defaultValue) => defaultValue ?? key,
-  returnEmptyString: false,
-});
-
+// `:lang(si)` and `:lang(ta)` in the stylesheet key off this.
 i18n.on('languageChanged', (lng) => {
-  localStorage.setItem(STORAGE_KEY, lng);
   document.documentElement.lang = lng;
 });
 

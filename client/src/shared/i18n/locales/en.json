@@ -1,1 +1,25 @@
-{}
+{
+  "common": {
+    "loading": "Loading"
+  },
+  "app": {
+    "name": "AgriSense",
+    "tagline": "Smarter decisions for every field."
+  },
+  "nav": {
+    "label": "Main",
+    "home": "Home",
+    "plots": "Plots",
+    "scan": "Scan",
+    "market": "Market",
+    "profile": "Profile"
+  },
+  "auth": {
+    "panel": {
+      "scan": "Scan a leaf to spot disease early",
+      "plots": "Keep every plot and harvest in one place",
+      "market": "Check market prices before you sell",
+      "footer": "Built for farmers in Sri Lanka."
+    }
+  }
+}

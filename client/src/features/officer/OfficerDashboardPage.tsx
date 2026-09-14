@@ -1,18 +1,12 @@
 import type { ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useAuthStore } from '@/features/auth';
 import { usePendingSyncCount } from '@/db/sync';
 
 /** Extension-officer view: oversight across the farms in their division. */
 export function OfficerDashboardPage(): ReactElement {
   const { t } = useTranslation();
-  const user = useAuthStore((state) => state.user);
   const pending = usePendingSyncCount();
-
-  if (user?.role === 'farmer') {
-    return <p className="text-muted">{t('officer.denied', 'Officer access required.')}</p>;
-  }
 
   return (
     <section className="flex flex-col gap-4">

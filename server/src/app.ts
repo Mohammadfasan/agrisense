@@ -3,7 +3,7 @@ import express, { type Express } from 'express';
 import helmet from 'helmet';
 
 import { env } from '@config';
-import { healthRouter } from '@modules';
+import { authRouter, healthRouter } from '@modules';
 import { drainGuard, errorHandler, notFound, requestId, requestLogger } from '@shared';
 
 /**
@@ -48,11 +48,12 @@ export function createApp(): Express {
   return app;
 }
 
-/** Placeholder for versioned feature routers as modules land. */
+/** Versioned feature routers. New modules mount here. */
 function createApiRouter(): express.Router {
   const router = express.Router();
   router.get('/', (_req, res) => {
     res.json({ name: 'AgriSense API', version: 'v1' });
   });
+  router.use('/auth', authRouter);
   return router;
 }

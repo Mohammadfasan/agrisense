@@ -24,11 +24,22 @@
     @apply inline-flex min-h-touch min-w-touch items-center justify-center gap-2
       rounded-lg px-4 text-sm font-medium transition-colors
       focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2
-      disabled:pointer-events-none disabled:opacity-50;
+      disabled:pointer-events-none;
+  }
+
+  /* A loading button is disabled too, but it is working, not unavailable, so it
+     keeps full colour. */
+  .btn:disabled:not([aria-busy='true']) {
+    @apply opacity-50;
   }
 
   .btn-primary {
     @apply btn bg-primary text-white hover:bg-primary-700 focus-visible:outline-primary;
+  }
+
+  .btn-secondary {
+    @apply btn border border-muted-300 bg-white text-gray-900 hover:bg-muted-50
+      focus-visible:outline-primary;
   }
 
   .btn-danger {
