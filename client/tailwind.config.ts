@@ -30,9 +30,12 @@ const config: Config = {
       spacing: {
         // WCAG 2.5.5 minimum touch target.
         touch: '44px',
+        // For the few one-tap choices that carry a whole screen -- picking a
+        // language, say. Sized for a thumb on a phone held in the field.
+        'touch-lg': '64px',
       },
       minWidth: { touch: '44px' },
-      minHeight: { touch: '44px' },
+      minHeight: { touch: '44px', 'touch-lg': '64px' },
     },
   },
   plugins: [],
