@@ -70,7 +70,12 @@ const DRAFT_KEY = 'agrisense.onboarding';
  * -- not to decide what is valid.
  */
 const draftSchema = z.object({
-  step: z.number().int().min(0).max(STEP_COUNT - 1).optional(),
+  step: z
+    .number()
+    .int()
+    .min(0)
+    .max(STEP_COUNT - 1)
+    .optional(),
   values: z
     .object({
       fullName: z.string().max(100),

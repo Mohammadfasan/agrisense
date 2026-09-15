@@ -245,7 +245,8 @@ function EditForm({
         inputMode="decimal"
         step="0.1"
         {...form.register('landSizeAcres', {
-          setValueAs: (value: unknown) => (value === '' || value === null ? undefined : Number(value)),
+          setValueAs: (value: unknown) =>
+            value === '' || value === null ? undefined : Number(value),
         })}
         {...(errors.landSizeAcres ? { error: fields.landSizeAcres.invalid } : {})}
       />

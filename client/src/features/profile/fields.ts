@@ -79,7 +79,10 @@ export function useProfileFields(): ProfileFieldset {
       },
       landSizeAcres: {
         label: t('profile.field.landSizeAcres', 'Land size (acres)'),
-        invalid: t('profile.invalid.landSizeAcres', 'Enter the land size in acres, from 0.1 to 1000.'),
+        invalid: t(
+          'profile.invalid.landSizeAcres',
+          'Enter the land size in acres, from 0.1 to 1000.',
+        ),
       },
       primaryCrops: {
         label: t('profile.field.primaryCrops', 'What do you grow?'),

@@ -76,10 +76,7 @@ export interface GeoPoint {
 export const longitudeSchema = z.number().min(-180).max(180);
 export const latitudeSchema = z.number().min(-90).max(90);
 
-export const geoPositionSchema: z.ZodType<GeoPosition> = z.tuple([
-  longitudeSchema,
-  latitudeSchema,
-]);
+export const geoPositionSchema: z.ZodType<GeoPosition> = z.tuple([longitudeSchema, latitudeSchema]);
 
 export const geoPointSchema: z.ZodType<GeoPoint> = z.object({
   type: z.literal('Point'),
