@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { env } from '@config';
 
 import { FarmerModel } from './farmer.model';
+import { FarmerProfileModel } from './farmerProfile.model';
 import { OtpModel } from './otp.model';
 import { RefreshTokenModel } from './refreshToken.model';
 
@@ -39,6 +40,23 @@ describe('farmers indexes', () => {
     expect(find(indexes, { phone: 1 })?.unique).toBe(true);
     expect(find(indexes, { role: 1, district: 1 })).toBeDefined();
     expect(find(indexes, { district: 1, isActive: 1 })).toBeDefined();
+  });
+});
+
+describe('farmerProfiles indexes', () => {
+  it('holds one profile per farmer and a 2dsphere on the location', async () => {
+    const indexes = await indexesOf(FarmerProfileModel.collection);
+
+    // "One profile per farmer" is enforced here and nowhere else: the upsert
+    // in `farmerProfile.service` relies on it to make two concurrent PUTs
+    // collide rather than both insert.
+    expect(find(indexes, { userId: 1 })?.unique).toBe(true);
+
+    // Week 9 outbreak clustering (DBSCAN) scans profiles by proximity, which
+    // MongoDB refuses outright without this -- unlike a missing plain index,
+    // it fails loudly, but only once the feature exists to fail.
+    expect(find(indexes, { location: '2dsphere' })).toBeDefined();
+    expect(find(indexes, { district: 1 })).toBeDefined();
   });
 });
 

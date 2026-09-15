@@ -36,6 +36,14 @@ export const ErrorCode = {
   PROFILE_REQUIRED: 'PROFILE_REQUIRED',
   /** The account is deactivated or soft-deleted. */
   ACCOUNT_INACTIVE: 'ACCOUNT_INACTIVE',
+
+  // --- Farmer profile ---
+  /**
+   * The caller is authenticated but has no `farmerProfiles` row yet. Distinct
+   * from a bare 404 so the client can tell "you have not filled this in"
+   * apart from "that URL is wrong", and send the farmer to the profile form.
+   */
+  PROFILE_NOT_FOUND: 'PROFILE_NOT_FOUND',
 } as const;
 
 export type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode];

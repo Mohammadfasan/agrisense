@@ -3,7 +3,7 @@ import express, { type Express } from 'express';
 import helmet from 'helmet';
 
 import { env } from '@config';
-import { authRouter, healthRouter } from '@modules';
+import { authRouter, farmersRouter, healthRouter } from '@modules';
 import { drainGuard, errorHandler, notFound, requestId, requestLogger } from '@shared';
 
 /**
@@ -55,5 +55,6 @@ function createApiRouter(): express.Router {
     res.json({ name: 'AgriSense API', version: 'v1' });
   });
   router.use('/auth', authRouter);
+  router.use('/farmers', farmersRouter);
   return router;
 }

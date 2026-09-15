@@ -636,6 +636,57 @@ that; the breakdown surfaces it.
 
 ---
 
+## 18. `farmerProfiles`
+
+The agronomic detail behind a farmer's identity, extending §1 `farmers`.
+
+Numbered last rather than beside `farmers`, where it belongs conceptually,
+because renumbering sixteen sections would invalidate every cross-reference
+that already points at them.
+
+| Field               | Type          | Required | Notes                                                                 |
+| ------------------- | ------------- | -------- | --------------------------------------------------------------------- |
+| `userId`            | ObjectId      | ✓        | ref `farmers`, unique — one profile per farmer                        |
+| `fullName`          | String        | ✓        | 2–100 chars; mirrors `farmers.name`                                   |
+| `district`          | Enum          | ✓        | `Anuradhapura` \| `Polonnaruwa` \| `Kurunegala`                       |
+| `gnDivision`        | String        | ✓        | Grama Niladhari — one level below `farmers.dsDivision`                |
+| `location`          | GeoJSON Point | ✓        | Homestead or main holding                                             |
+| `landSizeAcres`     | Number        | ✓        | 0.1–1000; acres, unlike `plots.areaHectares`                          |
+| `primaryCrops`      | [Enum]        | ✓        | ≥ 1 of `crops.code` — `PADDY`, `TOMATO`, `CHILLI`, `ONION`, `BRINJAL` |
+| `preferredLanguage` | Enum          | ✓        | `ta` \| `si` \| `en`; mirrors `farmers.language`                      |
+
+**Indexes**
+
+```js
+{ userId: 1 }                       // unique — one profile per farmer
+{ location: '2dsphere' }            // outbreak clustering (DBSCAN)
+{ district: 1 }                     // officer dashboard pre-filter
+```
+
+**Why this is not part of `farmers`.** The two are written on different
+occasions and read on different paths. `authenticate` reads the farmer document
+on every authenticated request; this is filled in once after sign-up and edited
+rarely. Keeping the land, location and crop fields out of the hot document
+keeps that per-request read small.
+
+**On the three duplicated fields.** `fullName`, `district` and
+`preferredLanguage` deliberately mirror `farmers.name`, `.district` and
+`.language`. This collection is authoritative and the service writes through to
+the farmer record on every save, because officer district-scoping and
+`/auth/me` read the farmer copy — a farmer who corrected their district here
+would otherwise go on being scoped, and advised, by the old one.
+
+**Why `district` and `primaryCrops` are enums when §1 and §4 use strings.**
+District is the scoping key for every officer query and the grouping key for
+outbreak clustering, so a profile saved as "Anuradapura" would silently drop
+out of both. `farmers.district` and `plots.district` predate the list; widening
+them to it is a migration, not a schema change. `primaryCrops` holds
+`crops.code` rather than `crops` ObjectIds because it is a farmer's declaration
+of what they grow, not a reference to a master-data row: it has to be
+validatable on the client, offline, where no ObjectId means anything.
+
+---
+
 ## Aggregation Pipelines
 
 ### Officer dashboard — disease counts by district

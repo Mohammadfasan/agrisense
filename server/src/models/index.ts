@@ -7,6 +7,11 @@ export {
   type NotificationPrefs,
   type PushSubscription,
 } from './farmer.model';
+export {
+  FarmerProfileModel,
+  type FarmerProfile,
+  type FarmerProfileDocument,
+} from './farmerProfile.model';
 export { OtpModel, OTP_PURPOSES, type Otp, type OtpDocument, type OtpPurpose } from './otp.model';
 export {
   RefreshTokenModel,
