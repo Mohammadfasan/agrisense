@@ -1,0 +1,37 @@
+{
+  "name": "@agrisense/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Domain primitives and request schemas shared by the API and the PWA",
+  "type": "commonjs",
+  "main": "dist/cjs/index.js",
+  "types": "dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/esm/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20.0.0 <21 || >=22"
+  },
+  "scripts": {
+    "build": "rimraf dist && tsc -p tsconfig.esm.json && tsc -p tsconfig.cjs.json && node scripts/stamp-module-type.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "rimraf": "^6.0.1",
+    "typescript": "^5.6.3"
+  },
+  "module": "dist/esm/index.js"
+}

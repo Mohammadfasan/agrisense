@@ -48,3 +48,6 @@ client/dev-dist/
 
 # docker volumes
 .docker-data/
+
+# vite temp config artifacts
+vite.config.ts.timestamp-*

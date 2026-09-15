@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "outDir": "./dist/cjs",
+    // Declarations come from the ESM build; emitting them twice would leave
+    // two copies to disagree.
+    "declaration": false,
+    "declarationMap": false
+  },
+  "exclude": ["node_modules", "dist", "src/**/*.test.ts"]
+}

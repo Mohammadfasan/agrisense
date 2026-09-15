@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // CommonJS, because the API consumes this package directly. Vite handles
+    // the interop for the client, which bundles rather than requires.
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    // No platform globals: nothing here may reach for `process` or `Buffer`,
+    // because half its consumers are browsers.
+    "types": []
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

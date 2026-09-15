@@ -11,6 +11,8 @@
     "lint": "eslint src"
   },
   "dependencies": {
+    "@agrisense/shared": "*",
+    "@hookform/resolvers": "^5.9.1",
     "@tanstack/react-query": "^5.62.7",
     "axios": "^1.7.9",
     "dexie": "^4.0.10",
@@ -21,12 +23,14 @@
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-hook-form": "^7.88.0",
     "react-i18next": "^15.2.0",
     "react-leaflet": "^4.2.1",
     "react-router-dom": "^6.28.0",
     "recharts": "^2.15.0",
     "uuid": "^11.0.3",
     "workbox-window": "^7.3.0",
+    "zod": "^3.23.8",
     "zustand": "^5.0.2"
   },
   "devDependencies": {
