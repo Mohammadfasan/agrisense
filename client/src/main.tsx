@@ -13,7 +13,8 @@ import '@/shared/styles/index.css';
 // in, and back to where they were afterwards.
 onSessionExpired(() => {
   const { pathname, search, hash } = router.state.location;
-  if (pathname === '/login') {
+  // Anywhere in the sign-in flow, not just its first step.
+  if (pathname === '/login' || pathname.startsWith('/login/')) {
     return;
   }
   const state: LoginRedirectState = { from: `${pathname}${search}${hash}` };

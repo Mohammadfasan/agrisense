@@ -59,14 +59,33 @@ export function onSessionExpired(handler: () => void): void {
   sessionExpiredHandler = handler;
 }
 
+/** The API's error envelope, as far as anything here needs to read it. */
+type ErrorEnvelope = { error?: { code?: unknown; details?: unknown } } | null | undefined;
+
 /** The `code` from the API's error envelope, when the error is an API response. */
 export function getApiErrorCode(error: unknown): string | undefined {
   if (!axios.isAxiosError(error)) {
     return undefined;
   }
-  const body = error.response?.data as { error?: { code?: unknown } } | null | undefined;
-  const code = body?.error?.code;
+  const code = (error.response?.data as ErrorEnvelope)?.error?.code;
   return typeof code === 'string' ? code : undefined;
+}
+
+/**
+ * The `details` an API error carries alongside its code -- how many OTP
+ * attempts are left, how long a rate limit has to run. Optional by design: the
+ * code alone always yields a usable message, and every reader has to cope with
+ * a server that sent no details at all.
+ */
+export function getApiErrorDetails(error: unknown): Record<string, unknown> | undefined {
+  if (!axios.isAxiosError(error)) {
+    return undefined;
+  }
+  const details = (error.response?.data as ErrorEnvelope)?.error?.details;
+  // Arrays are details too (validation issues), but nothing reads those by key.
+  return typeof details === 'object' && details !== null && !Array.isArray(details)
+    ? (details as Record<string, unknown>)
+    : undefined;
 }
 
 api.interceptors.request.use(async (config) => {

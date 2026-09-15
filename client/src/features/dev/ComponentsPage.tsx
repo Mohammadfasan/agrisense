@@ -136,10 +136,24 @@ function InputSection(): ReactElement {
       <Card className="grid gap-6 sm:grid-cols-2">
         <Input label="Plot name" placeholder="e.g. North paddy" />
         <Input
-          label="Phone number"
+          label="Mobile number"
+          prefix="+94"
           type="tel"
-          inputMode="tel"
-          hint="Include the country code, e.g. +94"
+          inputMode="numeric"
+          placeholder="7X XXX XXXX"
+          maxLength={9}
+          hint="A Sri Lankan mobile number, starting with 7."
+          className="tracking-wider"
+        />
+        <Input
+          label="Mobile number"
+          prefix="+94"
+          type="tel"
+          inputMode="numeric"
+          defaultValue="12345"
+          maxLength={9}
+          error="Enter a 9-digit mobile number starting with 7."
+          className="tracking-wider"
         />
         <Input
           label="Area (acres)"
@@ -156,6 +170,7 @@ function InputSection(): ReactElement {
           defaultValue="4821"
         />
         <Input label="District" defaultValue="Anuradhapura" disabled />
+        <Input label="Mobile number" prefix="+94" defaultValue="771234567" disabled />
         <Input label="Name" required placeholder="required" />
       </Card>
     </Section>

@@ -1,6 +1,7 @@
 {
   "common": {
-    "loading": "Loading"
+    "loading": "Loading",
+    "retry": "Try again"
   },
   "app": {
     "name": "AgriSense",
@@ -20,6 +21,116 @@
       "plots": "Keep every plot and harvest in one place",
       "market": "Check market prices before you sell",
       "footer": "Built for farmers in Sri Lanka."
+    },
+    "language": {
+      "title": "Choose your language",
+      "hint": "You can change this later from your profile.",
+      "switcher": "Language"
+    },
+    "phone": {
+      "title": "Sign in",
+      "label": "Mobile number",
+      "hint": "A Sri Lankan mobile number, starting with 7.",
+      "invalid": "Enter a 9-digit mobile number starting with 7.",
+      "submit": "Send code",
+      "privacy": "Your number is only used to sign you in."
+    },
+    "verify": {
+      "title": "Enter your code",
+      "sentTo": "We sent a code to {{phone}}.",
+      "label": "Verification code",
+      "digit": "Digit {{index}} of {{total}}",
+      "devCode": "Dev mode code: {{code}}",
+      "expiresIn": "Code expires in {{time}}",
+      "expiredHint": "Your code has run out.",
+      "resend": "Send a new code",
+      "submit": "Sign in",
+      "changeNumber": "Use a different number"
+    },
+    "profile": {
+      "legend": "No account uses this number yet. Add your details to create one.",
+      "name": "Name",
+      "district": "District",
+      "submit": "Create account"
+    },
+    "error": {
+      "validation": "Check the details and try again.",
+      "rateLimited": "Too many codes requested. Try again later.",
+      "rateLimitedFor": "Too many codes requested. Try again {{when}}.",
+      "invalid": "That code is incorrect.",
+      "invalidWithAttempts_one": "That code is incorrect. {{count}} attempt left.",
+      "invalidWithAttempts_other": "That code is incorrect. {{count}} attempts left.",
+      "expired": "That code has expired. Request a new one.",
+      "attempts": "Too many attempts. Request a new code.",
+      "inactive": "This account is no longer active.",
+      "generic": "Something went wrong. Check your connection and try again."
+    },
+    "signOut": "Sign out"
+  },
+  "district": {
+    "Anuradhapura": "Anuradhapura",
+    "Polonnaruwa": "Polonnaruwa",
+    "Kurunegala": "Kurunegala"
+  },
+  "crop": {
+    "PADDY": "Paddy",
+    "TOMATO": "Tomato",
+    "CHILLI": "Chilli",
+    "ONION": "Onion",
+    "BRINJAL": "Brinjal"
+  },
+  "onboarding": {
+    "title": "Tell us about your farm",
+    "progress": "Step {{current}} of {{total}}",
+    "back": "Back",
+    "next": "Next",
+    "finish": "Finish",
+    "saveFailed": "Could not save your details. Check your connection.",
+    "location": {
+      "legend": "Where is your land?",
+      "hint": "This is used to warn you about disease outbreaks near you.",
+      "useGps": "Use my GPS",
+      "found": "Location found: {{lat}}, {{lng}}",
+      "denied": "Location permission was refused. Enter the coordinates instead.",
+      "unavailable": "Could not get your location. Try again.",
+      "enterManually": "Enter coordinates by hand"
+    }
+  },
+  "profile": {
+    "title": "Profile",
+    "edit": "Edit",
+    "cancel": "Cancel",
+    "save": "Save",
+    "language": "Language",
+    "saveFailed": "Could not save your changes. Check your connection.",
+    "loadFailed": "Your profile could not be loaded. Check your connection.",
+    "field": {
+      "fullName": "Your name",
+      "district": "District",
+      "gnDivision": "Grama Niladhari division",
+      "landSizeAcres": "Land size (acres)",
+      "primaryCrops": "What do you grow?",
+      "latitude": "Latitude",
+      "longitude": "Longitude",
+      "phone": "Mobile number",
+      "location": "Location"
+    },
+    "hint": {
+      "gnDivision": "The GN division your land is in.",
+      "primaryCrops": "Choose one or more."
+    },
+    "invalid": {
+      "fullName": "Enter your full name, at least 2 letters.",
+      "district": "Choose your district.",
+      "gnDivision": "Enter your GN division.",
+      "landSizeAcres": "Enter the land size in acres, from 0.1 to 1000.",
+      "primaryCrops": "Choose at least one crop.",
+      "latitude": "Enter a latitude between -90 and 90.",
+      "longitude": "Enter a longitude between -180 and 180."
+    },
+    "value": {
+      "acres_one": "{{count}} acre",
+      "acres_other": "{{count}} acres"
     }
   }
 }
