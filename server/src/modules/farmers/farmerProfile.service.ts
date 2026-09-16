@@ -1,10 +1,11 @@
-import { Types } from 'mongoose';
+import type { Types } from 'mongoose';
 
 import { FarmerModel, FarmerProfileModel, type FarmerProfile } from '@models';
 import {
   AppError,
   ErrorCode,
   HttpStatus,
+  toObjectId,
   type FarmerProfileInput,
   type FarmerProfileUpdateInput,
   type LocaleCode,
@@ -153,16 +154,4 @@ function expectWritten(value: FarmerProfile | null): FarmerProfile {
     throw AppError.internal('Profile upsert returned no document');
   }
   return value;
-}
-
-/**
- * `req.user.id` is a string that came off a verified token and was then used
- * to load a real farmer, so it is well-formed by the time it reaches here. A
- * malformed one is a defect upstream, not a bad request.
- */
-function toObjectId(userId: string): Types.ObjectId {
-  if (!Types.ObjectId.isValid(userId)) {
-    throw AppError.internal('Authenticated user id is not an ObjectId');
-  }
-  return new Types.ObjectId(userId);
 }

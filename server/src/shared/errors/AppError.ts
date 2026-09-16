@@ -44,6 +44,15 @@ export const ErrorCode = {
    * apart from "that URL is wrong", and send the farmer to the profile form.
    */
   PROFILE_NOT_FOUND: 'PROFILE_NOT_FOUND',
+
+  // --- Plots ---
+  /**
+   * No plot with that id is readable by this caller. Returned identically
+   * whether the id was never used, belongs to another farmer, or names a plot
+   * this farmer has deleted -- telling those apart would confirm to a prober
+   * that a given UUID exists. See `plot.service`.
+   */
+  PLOT_NOT_FOUND: 'PLOT_NOT_FOUND',
 } as const;
 
 export type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode];
