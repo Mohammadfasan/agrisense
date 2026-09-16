@@ -12,6 +12,7 @@ export {
   type FarmerProfile,
   type FarmerProfileDocument,
 } from './farmerProfile.model';
+export { PlotModel, type Plot, type PlotDocument } from './plot.model';
 export { OtpModel, OTP_PURPOSES, type Otp, type OtpDocument, type OtpPurpose } from './otp.model';
 export {
   RefreshTokenModel,
