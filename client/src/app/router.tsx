@@ -12,9 +12,10 @@ import { RoleRoute } from './RoleRoute';
 const OFFICER_PORTAL_ROLES: readonly UserRole[] = ['officer', 'admin'];
 
 /**
- * Feature routes are loaded on demand. The map (leaflet) and charts (recharts)
- * are the two heaviest dependencies in the app and neither is needed to sign in
- * or to open the scan screen — on a 3G connection that difference is seconds.
+ * Feature routes are loaded on demand. The charts (recharts) and the map
+ * (leaflet, once the plot boundary editor lands) are the heaviest dependencies
+ * in the app and neither is needed to sign in or to open the scan screen — on
+ * a 3G connection that difference is seconds.
  *
  * Guards are pathless layout routes, so each one wraps a whole subtree:
  *
@@ -94,15 +95,25 @@ export const router = createBrowserRouter([
               {
                 path: 'plots',
                 lazy: async () => {
-                  const { FarmListPage } = await import('@/features/farm');
-                  return { Component: FarmListPage };
+                  const { PlotsPage } = await import('@/features/plots');
+                  return { Component: PlotsPage };
                 },
               },
               {
-                path: 'plots/:id',
+                // `new` and `:id/edit` share one component. Order does not
+                // matter -- react-router ranks the static segment above the
+                // dynamic one however they are written.
+                path: 'plots/new',
                 lazy: async () => {
-                  const { PlotDetailPage } = await import('@/features/farm');
-                  return { Component: PlotDetailPage };
+                  const { PlotFormPage } = await import('@/features/plots');
+                  return { Component: PlotFormPage };
+                },
+              },
+              {
+                path: 'plots/:id/edit',
+                lazy: async () => {
+                  const { PlotFormPage } = await import('@/features/plots');
+                  return { Component: PlotFormPage };
                 },
               },
               {

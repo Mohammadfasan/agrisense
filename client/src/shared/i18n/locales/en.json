@@ -132,5 +132,67 @@
       "acres_one": "{{count}} acre",
       "acres_other": "{{count}} acres"
     }
+  },
+  "plot": {
+    "title": "My plots",
+    "add": "Add plot",
+    "loadMore": "Show more plots",
+    "backToList": "Back to my plots",
+    "save": "Save plot",
+    "cancel": "Cancel",
+    "delete": "Delete plot",
+    "planted": "Planted {{date}}",
+    "notPlanted": "Not planted yet",
+    "new": {
+      "title": "Add a plot"
+    },
+    "edit": {
+      "title": "Edit plot"
+    },
+    "empty": {
+      "title": "No plots yet",
+      "description": "Add your first plot to keep track of what is growing and get warnings for it.",
+      "action": "Add your first plot"
+    },
+    "location": {
+      "legend": "Where is this plot?",
+      "hint": "Stand on the plot and tap the button, so warnings reach the right field."
+    },
+    "confirmDelete": {
+      "title": "Delete this plot?",
+      "description": "\"{{name}}\" and everything recorded for it will be removed.",
+      "confirm": "Delete",
+      "cancel": "Keep plot"
+    },
+    "field": {
+      "name": "Plot name",
+      "crop": "What is growing here?",
+      "areaAcres": "Size (acres)",
+      "plantedAt": "Planted on",
+      "notes": "Notes"
+    },
+    "hint": {
+      "name": "A name you will know it by, like \"Upper field\".",
+      "plantedAt": "Leave this empty if you have not planted yet.",
+      "notes": "Anything worth remembering about this plot."
+    },
+    "invalid": {
+      "name": "Enter a name for this plot, up to 60 letters.",
+      "crop": "Choose the crop growing here.",
+      "areaAcres": "Enter the size in acres, from 0.01 to 1000.",
+      "plantedAt": "Enter the date it was planted.",
+      "notes": "Notes can be up to 500 letters."
+    },
+    "value": {
+      "acres_one": "{{count}} acre",
+      "acres_other": "{{count}} acres"
+    },
+    "error": {
+      "load": "Your plots could not be loaded. Check your connection.",
+      "save": "Could not save this plot. Check your connection.",
+      "delete": "Could not delete this plot. Check your connection.",
+      "gone": "This plot is no longer there. It may have been deleted.",
+      "validation": "Check the details and try again."
+    }
   }
 }
