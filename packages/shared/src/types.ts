@@ -87,3 +87,118 @@ export const geoPointSchema: z.ZodType<GeoPoint> = z.object({
 export function point(coordinates: { latitude: number; longitude: number }): GeoPoint {
   return { type: 'Point', coordinates: [coordinates.longitude, coordinates.latitude] };
 }
+
+/**
+ * A closed linear ring: the boundary of one polygon face.
+ *
+ * GeoJSON requires four positions minimum and the last to repeat the first, so
+ * the smallest legal ring is a triangle written with four points. Both rules
+ * are enforced here rather than left to MongoDB, which rejects an unclosed ring
+ * at insert time with a driver error -- a 500 for what is a malformed request.
+ */
+export type GeoLinearRing = GeoPosition[];
+
+/**
+ * GeoJSON Polygon. The first ring is the outer boundary; any further rings are
+ * holes, which the plot editor does not draw today but the format allows and
+ * this validator therefore accepts.
+ */
+export interface GeoPolygon {
+  type: 'Polygon';
+  coordinates: GeoLinearRing[];
+}
+
+export const geoLinearRingSchema: z.ZodType<GeoLinearRing> = z
+  .array(geoPositionSchema)
+  .min(4, 'a linear ring needs at least 4 positions')
+  .superRefine((ring, ctx) => {
+    const first = ring[0];
+    const last = ring[ring.length - 1];
+    // `min(4)` above guarantees both, but `noUncheckedIndexedAccess` does not
+    // know that and a `!` here would be the one place this file lies.
+    if (!first || !last) {
+      return;
+    }
+    if (first[0] !== last[0] || first[1] !== last[1]) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'a linear ring must be closed — the last position must repeat the first',
+      });
+    }
+  });
+
+export const geoPolygonSchema: z.ZodType<GeoPolygon> = z.object({
+  type: z.literal('Polygon'),
+  coordinates: z.array(geoLinearRingSchema).min(1, 'a polygon needs at least an outer ring'),
+});
+
+/**
+ * The area-weighted centroid of a polygon's outer ring.
+ *
+ * Longitude and latitude are treated as plane coordinates. Over a field of a
+ * few hectares the error from ignoring the earth's curvature is centimetres,
+ * and the centroid only ever feeds proximity queries and outbreak clustering,
+ * neither of which can tell. Doing it properly would mean projecting to a
+ * local UTM zone for no reachable difference in the answer.
+ *
+ * A ring enclosing no area -- every point identical, or all of them collinear
+ * -- makes the shoelace formula divide by zero, so that case falls back to the
+ * mean of the vertices.
+ */
+export function polygonCentroid(polygon: GeoPolygon): GeoPoint {
+  const ring = polygon.coordinates[0];
+  if (!ring || ring.length === 0) {
+    throw new Error('polygon has no outer ring');
+  }
+
+  // The closing position repeats the first and must not be counted twice.
+  const vertices = ring.slice(0, -1);
+  if (vertices.length === 0) {
+    throw new Error('polygon outer ring has no distinct positions');
+  }
+
+  // The shoelace sum runs on coordinates measured from the first vertex, not
+  // from (0, 0). A plot is a few hundred metres across at 80°E, so the cross
+  // products of absolute coordinates are ~10^3 while the area they encode is
+  // ~10^-6: the terms very nearly cancel, and the doubles lose most of their
+  // significant digits doing it. Measured from a local origin the magnitudes
+  // match and the cancellation goes away. Translating is free -- a centroid
+  // moves exactly as its polygon does -- so the origin is added back at the
+  // end. Without this the answer drifts by roughly 10 cm.
+  const origin = vertices[0];
+  if (!origin) {
+    throw new Error('polygon outer ring has no distinct positions');
+  }
+
+  let twiceArea = 0;
+  let x = 0;
+  let y = 0;
+
+  for (let i = 0; i < vertices.length; i += 1) {
+    const current = vertices[i];
+    const next = vertices[(i + 1) % vertices.length];
+    if (!current || !next) {
+      continue;
+    }
+    const cx = current[0] - origin[0];
+    const cy = current[1] - origin[1];
+    const nx = next[0] - origin[0];
+    const ny = next[1] - origin[1];
+
+    const cross = cx * ny - nx * cy;
+    twiceArea += cross;
+    x += (cx + nx) * cross;
+    y += (cy + ny) * cross;
+  }
+
+  if (twiceArea === 0) {
+    const sum = vertices.reduce<[number, number]>(
+      (acc, position) => [acc[0] + position[0], acc[1] + position[1]],
+      [0, 0],
+    );
+    return { type: 'Point', coordinates: [sum[0] / vertices.length, sum[1] / vertices.length] };
+  }
+
+  const scale = 3 * twiceArea;
+  return { type: 'Point', coordinates: [x / scale + origin[0], y / scale + origin[1]] };
+}
