@@ -130,3 +130,87 @@ beforehand. They land in a lazy chunk shared by `/onboarding` and `/profile`:
 **~17 kB gzipped**, and the initial entry bundle is unchanged at 384,591 bytes
 (384,590 before). Also `@agrisense/shared` as a workspace dependency of both
 `server` and `client`.
+
+---
+
+## Day 10 Part B — Plot screens (client)
+
+**Shipped.** A client-side UUID v4 helper, a Zustand `plotStore` over
+`/api/v1/plots`, and three screens behind `RequireProfile`: a card list at
+`/plots` with an empty state and a floating add button, and one shared form at
+`/plots/new` and `/plots/:id/edit`, with delete behind a confirmation dialog.
+Two new UI primitives (`Textarea`, `ConfirmDialog`). Tamil and Sinhala keys
+added alongside the English ones — 136 keys in each of the three catalogues,
+parity verified. The client typechecks, lints and builds; the entry bundle is
+unchanged at 384,591 bytes, and dropping the leaflet map from `/plots` takes
+its chunk out of the build entirely.
+
+### Decisions not specified in the brief
+
+**`PUT` for the edit too, carrying `boundary` through.** The obvious reading is
+`PATCH` for an edit, as `/profile` does. It is wrong here: `PUT` replaces the
+whole resource, `PATCH` cannot clear an optional field, and the form owns every
+writable field except `boundary` — so a farmer correcting a plot's name with
+`PUT` would silently erase an outline these screens cannot draw. `toPlotInput`
+takes the existing boundary and hands it back, which makes `PUT` safe and keeps
+the screens on the same endpoint offline sync will replay into. Polygon drawing
+is out of scope (centroid plus acres only), so nothing here can create one yet;
+the carry-through is for the day something can.
+
+**The card opens the edit form; there is no read-only detail screen.**
+Everything a plot holds fits on the form, and a detail screen would be a list
+of values with an Edit button above it — one tap of overhead per change, for a
+farmer wearing gloves.
+
+**Delete lives on the edit screen, not on the card.** A trash icon beside a
+full-width link on a 360px screen is an accidental-tap hazard, and the
+confirmation dialog is the second line of defence rather than the first.
+
+**`client/src/lib/uuid.ts`, as the brief names it.** Every other client helper
+is under `src/shared/utils/`. Built where it was asked for; it is a one-line
+move if the convention was meant to win.
+
+**`ConfirmDialog` is a native `<dialog>`.** Focus trapping, inertness and
+Escape come with the element. Not `window.confirm`, which blocks the renderer
+and cannot be translated — and the translation is the point on this app.
+
+**`plotStore` resets when the signed-in account changes.** A shared phone is
+the normal case here, not the edge one, and without it the next farmer to sign
+in sees the previous one's plots until the fetch lands.
+
+**The list is kept in the server's own order.** `mergePlot` inserts by
+`updatedAt` descending with `_id` as the tie-break, exactly as `plot.service`
+sorts, so a plot fetched by id for a deep link cannot land at the front and put
+the list in an order the next cursor disagrees with.
+
+**`FarmListPage` and the `PlotDetailPage` stub are gone.** Day-1 scaffolding
+over a local Dexie `farms` table, which the plots API supersedes; `/plots`
+cannot be owned by both. The leaflet map it carried is in git history, and
+belongs with the boundary editor rather than in a list that has no boundaries
+to draw.
+
+### Known gaps and risks
+
+- **The Tamil and Sinhala strings are machine-written and need a native
+  reviewer**, as on Day 9. Key parity is verified; wording and register are
+  not.
+- **Not exercised in a real browser.** Same as Day 9: no browser driver in the
+  repo. Typecheck, lint and the production build pass, but the GPS path, the
+  date field, the confirmation dialog and the 360px layout have not been
+  clicked through.
+- **No client tests**, so the store's paging merge and the form's `PUT` body
+  are covered by the typechecker only.
+- **Cursor paging is a "Show more" button.** Correct, and not what a farmer
+  with a hundred plots expects. Nobody has that many yet.
+- **`plantedAt` is a day stored as an instant.** Written and read as midnight
+  UTC so the round trip is stable, which is right for `+05:30` and would show
+  the previous day to anyone west of Greenwich.
+- **Plots are not offline-first yet.** The store is memory-only and every
+  action needs a connection; the Dexie outbox (Week 6) is where that belongs,
+  and a second cached copy of the list here would only have to be reconciled
+  with it later.
+
+### Dependencies added
+
+None. `crypto.randomUUID` falls back to the `uuid` package, which was already a
+dependency of the API client.
