@@ -8,16 +8,29 @@
 
 ## Conventions
 
-| Convention       | Rule                                                       |
-| ---------------- | ---------------------------------------------------------- |
-| Collection names | lowercase plural (`farmers`, `scans`)                      |
-| Field names      | camelCase                                                  |
-| Timestamps       | `createdAt`, `updatedAt` — Mongoose `{ timestamps: true }` |
-| Soft delete      | `deletedAt: Date \| null` on user-owned entities           |
-| References       | `ObjectId` with explicit `ref`                             |
-| Geospatial       | GeoJSON, `2dsphere` index                                  |
-| Translations     | Embedded object keyed by locale: `{ ta, si, en }`          |
-| Sync key         | `clientId: String` (UUID v4) on client-writable entities   |
+| Convention       | Rule                                                        |
+| ---------------- | ----------------------------------------------------------- |
+| Collection names | lowercase plural (`farmers`, `scans`)                       |
+| Field names      | camelCase                                                   |
+| Timestamps       | `createdAt`, `updatedAt` — Mongoose `{ timestamps: true }`  |
+| Soft delete      | `deletedAt: Date \| null` on user-owned entities            |
+| References       | `ObjectId` with explicit `ref`                              |
+| Geospatial       | GeoJSON, `2dsphere` index                                   |
+| Translations     | Embedded object keyed by locale: `{ ta, si, en }`           |
+| Identifiers      | `ObjectId`, **except** user-authored records — see below    |
+| Sync version     | `version: Number`, `$inc` on every write, on synced records |
+
+**Identifiers.** A record a farmer authors — `plots`, and the collections that
+follow it — takes a **client-generated UUID v4 as its `_id`**, stored as a
+`String`. Everything else, including all master data and every server-owned
+record, keeps an `ObjectId`. The reason is offline sync: the client fixes the id
+before the record has ever reached the server, which is what makes the sync
+upsert idempotent. `docs/architecture.md`, ADR 001, has the full reasoning.
+
+This supersedes the earlier `clientId: String` convention, which carried two
+identities for one record. On such a collection `deletedAt` is load-bearing
+rather than cosmetic: a hard delete would free the UUID for a replayed create to
+resurrect.
 
 **Locale object shape** — used wherever text is user-facing:
 
@@ -136,36 +149,63 @@ reuses a rotated token, so reuse implies theft.
 
 ## 4. `plots`
 
-| Field               | Type            | Required | Notes                                        |
-| ------------------- | --------------- | -------- | -------------------------------------------- |
-| `farmerId`          | ObjectId        | ✓        | ref `farmers`                                |
-| `clientId`          | String          | ✓        | UUID, sync idempotency                       |
-| `name`              | String          | ✓        | "Upper field"                                |
-| `boundary`          | GeoJSON Polygon |          | Drawn on map                                 |
-| `centroid`          | GeoJSON Point   | ✓        | Derived; used for radius queries             |
-| `areaHectares`      | Number          | ✓        | Computed from boundary                       |
-| `district`          | String          | ✓        | Reverse-geocoded from centroid               |
-| `dsDivision`        | String          |          |                                              |
-| `soilType`          | Enum            |          | `clay` \| `loam` \| `sandy` \| `laterite`    |
-| `irrigationType`    | Enum            |          | `rainfed` \| `canal` \| `well` \| `drip`     |
-| `currentPlantingId` | ObjectId        |          | ref `plantings`, denormalised                |
-| `boundaryFlagged`   | Boolean         |          | Set on sync conflict, pending officer review |
-| `deletedAt`         | Date            |          |                                              |
+**Implemented — Day 10.** `server/src/models/plot.model.ts`.
+
+| Field       | Type            | Required | Notes                                           |
+| ----------- | --------------- | -------- | ----------------------------------------------- |
+| `_id`       | String          | ✓        | **Client-generated UUID v4**, lower case        |
+| `userId`    | ObjectId        | ✓        | ref `farmers`                                   |
+| `name`      | String          | ✓        | 1–60 chars. "Upper field"                       |
+| `crop`      | Enum            | ✓        | `crops.code` — see `CROP_CODES`                 |
+| `areaAcres` | Number          | ✓        | 0.01–1000                                       |
+| `boundary`  | GeoJSON Polygon |          | Drawn on map; rings validated closed            |
+| `centroid`  | GeoJSON Point   | ✓        | `[lng, lat]`. Derived from `boundary` if unsent |
+| `plantedAt` | Date            |          | Null when nothing is in the ground              |
+| `notes`     | String          |          | Max 500 chars                                   |
+| `version`   | Number          | ✓        | Default 1; `$inc` on every write                |
+| `deletedAt` | Date            |          | Null when live. Soft delete                     |
 
 **Indexes**
 
 ```js
-{ farmerId: 1, deletedAt: 1 }
-{ centroid: '2dsphere' }            // radius / outbreak proximity
-{ boundary: '2dsphere' }            // containment queries
-{ clientId: 1 }                     // unique — sync
-{ district: 1 }
+{ centroid: '2dsphere' }                       // Week 9 outbreak clustering
+{ userId: 1, deletedAt: 1, updatedAt: -1 }     // the list endpoint, exactly
 ```
+
+**On `_id`.** A plot's id is a UUID v4 the client generates, not an ObjectId
+this server mints — the record is created offline and synced later, and a fixed
+id makes the sync upsert idempotent. `docs/architecture.md`, ADR 001, has the
+reasoning and the consequences; the ones visible here are that `deletedAt` is a
+tombstone reserving the id rather than a nicety, and that `version` exists at
+all.
+
+This replaces the earlier `farmerId` + `clientId` pairing: `userId` is the
+owner reference (matching `farmerProfiles.userId`), and the separate sync key is
+gone because `_id` now _is_ the sync key.
+
+**Why the compound index is ordered as it is.** Equality fields first
+(`userId`, `deletedAt`), then the sort key (`updatedAt`, descending). The list
+query walks the index in order and never sorts in memory, and because
+`updatedAt` is last a paging cursor can seek straight to its position.
 
 **Why store both `boundary` and `centroid`.** Polygon containment queries are
 expensive relative to point-radius queries, and outbreak clustering only needs a
 representative point. Storing the derived centroid trades a small amount of
-redundancy for a substantial query cost reduction on the hottest path.
+redundancy for a substantial query cost reduction on the hottest path. The
+centroid is area-weighted (shoelace), computed in `@agrisense/shared`, so the
+client can show the same point before the plot has ever reached the server.
+
+**Areas are acres, not hectares.** Matching `farmerProfiles.landSizeAcres` and
+what a farmer here states their own land as. The earlier draft of this table
+said `areaHectares`; having the two collections disagree on units is exactly the
+bug that unit fields cause, so both are acres.
+
+**Deferred.** `district`, `dsDivision`, `soilType`, `irrigationType`,
+`currentPlantingId` and `boundaryFlagged` are not implemented yet. The first two
+need reverse geocoding from the centroid, `currentPlantingId` needs `plantings`
+(§7), and `boundaryFlagged` belongs with the Week 6 sync conflict handling that
+sets it. `boundary` carries no `2dsphere` index until a query actually needs
+containment.
 
 ---
 
@@ -658,9 +698,15 @@ that already points at them.
 **Indexes**
 
 ```js
-{ userId: 1 }                       // unique — one profile per farmer
-{ location: '2dsphere' }            // outbreak clustering (DBSCAN)
-{ district: 1 }                     // officer dashboard pre-filter
+{
+  userId: 1;
+} // unique — one profile per farmer
+{
+  location: '2dsphere';
+} // outbreak clustering (DBSCAN)
+{
+  district: 1;
+} // officer dashboard pre-filter
 ```
 
 **Why this is not part of `farmers`.** The two are written on different
