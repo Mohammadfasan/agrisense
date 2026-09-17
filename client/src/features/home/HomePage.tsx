@@ -1,15 +1,28 @@
-import { ChevronRight, LineChart, MapPin, ScanLine, User, type LucideIcon } from 'lucide-react';
+import type { CalendarTaskRecord } from '@agrisense/shared';
+import {
+  ChevronRight,
+  LineChart,
+  ListTodo,
+  MapPin,
+  ScanLine,
+  User,
+  type LucideIcon,
+} from 'lucide-react';
 import { useEffect, type ReactElement, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import { FEATURES } from '@/app/features';
 import { useAuthStore } from '@/features/auth';
-// Straight at the store rather than through `@/features/plots`, which would
-// pull the plot form -- and react-hook-form with it -- into the chunk for the
-// first screen every farmer loads.
+// Straight at the modules rather than through `@/features/plots` and
+// `@/features/calendar`, whose barrels would pull the plot form and the task
+// sheet -- react-hook-form with them -- into the chunk for the first screen
+// every farmer loads.
+import { ACTIVITY_META, taskTitle } from '@/features/calendar/activity';
+import { useCalendarStore } from '@/features/calendar/calendarStore';
 import { usePlotStore } from '@/features/plots/plotStore';
 import { Spinner } from '@/shared/components';
+import { formatDayRelative, todayIso } from '@/shared/i18n/dates';
 import { cx } from '@/shared/utils/cx';
 
 /**
@@ -51,6 +64,7 @@ export function HomePage(): ReactElement {
       </h2>
 
       <ScanCard />
+      <UpcomingCard />
       <PlotsCard />
 
       {/* Two-up: both fit a thumb at 360px, and neither is important enough to
@@ -70,6 +84,108 @@ export function HomePage(): ReactElement {
         />
       </div>
     </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The next few things to do, across every plot.
+ *
+ * **Absent when there is nothing due**, rather than an empty state saying so.
+ * A farmer with a clear week should see a short screen, not a card explaining
+ * that it has nothing to tell them — and an empty card in a fixed position
+ * teaches people to stop reading the position.
+ *
+ * Three rows, not the whole list. This is the home screen's answer to "what
+ * now", and the fourth task is one scroll further than that question reaches;
+ * the plot's own calendar is where the rest lives, which is where each row
+ * goes.
+ *
+ * Each row carries the plot's name, because "spray for thrips" means nothing
+ * until you know which field. The name comes from the plots already loaded for
+ * the card below — a plot on the second page of a long list has no name here
+ * yet, and the row is still useful without it, so it is simply left off rather
+ * than fetched for.
+ */
+function UpcomingCard(): ReactElement | null {
+  const { t } = useTranslation();
+  const tasks = useCalendarStore((state) => state.upcoming);
+  const ensureUpcoming = useCalendarStore((state) => state.ensureUpcoming);
+  const plots = usePlotStore((state) => state.plots);
+
+  useEffect(() => {
+    void ensureUpcoming();
+  }, [ensureUpcoming]);
+
+  if (tasks.length === 0) {
+    return null;
+  }
+
+  // One "today" for every row, so a card left open across midnight cannot
+  // label one row "today" and the next one by date.
+  const today = todayIso();
+
+  return (
+    <section className="flex flex-col overflow-hidden rounded-2xl border border-muted-200 bg-white shadow-sm">
+      <h3 className="flex items-center gap-2 px-4 pb-2 pt-4 text-base font-semibold text-gray-900">
+        <ListTodo className="h-5 w-5 text-primary-700" aria-hidden />
+        {t('calendar.upcoming.title', 'To do next')}
+      </h3>
+      <ul className="flex flex-col">
+        {tasks.slice(0, 3).map((task) => (
+          <li key={task._id} className="border-t border-muted-200">
+            <UpcomingRow
+              task={task}
+              today={today}
+              plotName={plots.find((plot) => plot._id === task.plotId)?.name}
+            />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function UpcomingRow({
+  task,
+  today,
+  plotName,
+}: {
+  task: CalendarTaskRecord;
+  today: string;
+  /** Absent when that plot is not among the ones loaded. */
+  plotName: string | undefined;
+}): ReactElement {
+  const { t } = useTranslation();
+  const isOverdue = task.dueDate < today;
+  const Icon = ACTIVITY_META[task.type].icon;
+
+  return (
+    <Link
+      to={`/plots/${task.plotId}/calendar`}
+      className="flex min-h-touch-lg items-center gap-3 px-4 py-3 transition-colors hover:bg-muted-50 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+    >
+      <span
+        className={cx(
+          'flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
+          isOverdue ? 'bg-danger-50 text-danger-700' : 'bg-primary-50 text-primary-700',
+        )}
+      >
+        <Icon className="h-6 w-6" aria-hidden />
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="truncate text-base font-medium text-gray-900">{taskTitle(task, t)}</span>
+        <span className="flex flex-wrap items-center gap-x-2 text-sm">
+          {plotName !== undefined && <span className="truncate text-muted-700">{plotName}</span>}
+          <span className={cx('font-medium', isOverdue ? 'text-danger-700' : 'text-muted-700')}>
+            {isOverdue && `${t('calendar.bucket.overdue', 'Overdue')} · `}
+            {formatDayRelative(task.dueDate, today)}
+          </span>
+        </span>
+      </span>
+      <ChevronRight className="h-5 w-5 shrink-0 text-muted" aria-hidden />
+    </Link>
   );
 }
 

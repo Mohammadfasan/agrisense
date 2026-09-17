@@ -4,7 +4,11 @@ import { useEffect, type ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
-import { ACTIVITY_META, taskTitle, useCalendarStore, useNextTask } from '@/features/calendar';
+// Deep imports, not the feature barrel: that would pull the calendar screen
+// and the task sheet -- react-hook-form with them -- into this chunk.
+import { ACTIVITY_META, taskTitle } from '@/features/calendar/activity';
+import { useCalendarStore } from '@/features/calendar/calendarStore';
+import { useNextTask } from '@/features/calendar/useNextTask';
 import { Button, EmptyState, Spinner } from '@/shared/components';
 import { formatDayRelative, todayIso } from '@/shared/i18n/dates';
 import { cx } from '@/shared/utils/cx';
