@@ -8,6 +8,11 @@ export {
   type PushSubscription,
 } from './farmer.model';
 export {
+  CalendarTaskModel,
+  type CalendarTask,
+  type CalendarTaskDocument,
+} from './calendarTask.model';
+export {
   FarmerProfileModel,
   type FarmerProfile,
   type FarmerProfileDocument,

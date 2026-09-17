@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { env } from '@config';
 
+import { CalendarTaskModel } from './calendarTask.model';
 import { FarmerModel } from './farmer.model';
 import { FarmerProfileModel } from './farmerProfile.model';
 import { OtpModel } from './otp.model';
@@ -83,5 +84,20 @@ describe('refreshTokens indexes', () => {
     expect(find(indexes, { tokenHash: 1 })?.unique).toBe(true);
     expect(find(indexes, { farmerId: 1, familyId: 1 })).toBeDefined();
     expect(find(indexes, { expiresAt: 1 })?.expireAfterSeconds).toBe(0);
+  });
+});
+
+describe('calendarTasks indexes', () => {
+  it('matches docs/schema.md §19', async () => {
+    const indexes = await indexesOf(CalendarTaskModel.collection);
+
+    // One plot's calendar: the month and week views, which always name a plot.
+    expect(find(indexes, { userId: 1, plotId: 1, deletedAt: 1, dueDate: 1 })).toBeDefined();
+
+    // `/calendar/upcoming`, which names no plot. The index above cannot serve
+    // it -- `plotId` sits in the middle of it, so an unconstrained query can
+    // only use `userId` as a prefix and would sort every task the farmer owns
+    // in memory.
+    expect(find(indexes, { userId: 1, deletedAt: 1, dueDate: 1 })).toBeDefined();
   });
 });
