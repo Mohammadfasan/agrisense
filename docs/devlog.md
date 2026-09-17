@@ -437,3 +437,141 @@ thing to keep right. No behaviour change.
 ### Dependencies added
 
 None.
+
+---
+
+## Day 11 Part B — Calendar screens (client)
+
+**Shipped.** A Zustand `calendarStore` over `/api/v1/calendar`, a crop calendar
+screen at `/plots/:id/calendar` with add/edit in a bottom sheet, a crop-stage
+bar and next-due line on every plot card, an upcoming-tasks card on the home
+screen, and day formatting in the i18n layer with Tamil and Sinhala month
+names. 319 keys in each of the three catalogues, parity verified, including
+translations for all 50 crop calendar activities. 124 server tests pass (two
+new); all three workspaces typecheck and lint clean; the client builds.
+
+### Decisions not specified in the brief
+
+**The calendar is a list of four buckets, not a month grid.** A grid on a 360px
+phone is thirty cells of four characters, and it answers "what is the date" —
+which the farmer knows — instead of "what do I do now", which is why they
+opened it. Overdue, today, this week, later; empty buckets are not rendered at
+all, because four headings with nothing under three of them looks broken.
+
+**Two targets per row, deliberately apart.** The body of the row opens the
+editor; a 48px tick against the right edge completes the task. They are taken
+in opposite circumstances — the tick standing in a field with muddy hands, the
+editor sitting down — and a mis-tap between them costs either a lost record or
+an unwanted form. The tick is a toggle: completing is undone by tapping again,
+which sends `PATCH { completedOn: null }`, the only request that can express it.
+
+**Completion sends the day the phone thinks it is.** The API would default to
+today in Colombo, which is right for Sri Lanka and wrong for the farmer's own
+device if it is ever set to something else. The client knows better and says so.
+
+**Month names come from the catalogues, not `Intl`.** The Android WebViews this
+app targets ship trimmed ICU data, and a device with no Sinhala calendar
+answers in English — which looks like a working app to everyone testing it and
+a broken one to the farmer holding it. The order of day, month and year is a
+catalogue string too: Sinhala names the month first and the year before both.
+
+**Only today and tomorrow are relative.** "In 3 days" reads as precision the
+reader then has to do arithmetic on. Yesterday is a date rather than
+"yesterday": the row is already marked overdue, and softening the day it was
+due would work against that.
+
+**`todayIso` reads the device's local date parts, never `toISOString`.** At
+09:00 in Colombo it is still 03:30 UTC, and reading the UTC day would file every
+morning's work as overdue until half past five — and the reverse after 18:30.
+
+**The plot card became two stacked targets.** The body opens the plot, the strip
+along the bottom opens its calendar and carries the next thing due. It had to
+stop being one `<Link>`: an anchor inside an anchor is not markup a browser or a
+screen reader can make sense of. The strip is there with nothing due as well,
+because a card that sometimes has a way into the calendar is one the farmer has
+to re-learn every time the season turns over.
+
+**One request fills every card's next-due line.** `useNextTask` reads that
+plot's own calendar when the farmer has opened it, and otherwise the cross-plot
+`upcoming` list, which one request fills for the whole screen. The cost is that
+the window is 14 days: a plot whose next job is a month out shows no line. A
+calendar fetch per card would be a request per row, and "next: harvest, in 74
+days" on every card is noise.
+
+**The crop-stage bar is drawn from `CROP_GROWING_DAYS`, published in
+`@agrisense/shared` this day.** The season lengths live in the agronomy file the
+server reads and the client cannot; rather than a second hand-kept copy, the
+server now refuses to boot if the two disagree. The day is spelled out beside
+the bar — "Day 34 of 120" — because a bar on its own is a shape, and a farmer
+deciding whether to order fertiliser wants the number.
+
+**Template tasks are editable, and the sheet is seeded with the translation.**
+A template task stores an i18n key; a farmer moving a date must not be shown
+`calendar.task.paddy.sowing.title` in the field they are editing. Saving stores
+the words they saw. The task stays `source: template` — the server owns that
+field — so a regeneration will still replace it, which is the documented Day 11A
+behaviour and remains the sharp edge of this design.
+
+**The upcoming card is absent, not empty, when there is nothing due.** A farmer
+with a clear week should get a shorter screen, and a card that is sometimes
+empty in a fixed position teaches people to stop reading that position.
+
+**Home and the plots list reach into the calendar feature's modules rather than
+its barrel.** The barrel would pull the calendar screen and the task sheet —
+react-hook-form with them — into the first chunk a farmer loads. The same reason
+`HomePage` already deep-imported `plotStore`.
+
+**A picker of two columns rather than three.** "பூச்சி கட்டுப்பாடு" does not fit
+a 110px cell, and a picker that looks right in English and wrapped in the two
+languages most of this audience reads is not a picker that was checked.
+
+### A bug this work uncovered
+
+**`plotSchema` and `calendarTaskSchema` rejected what the API actually sends.**
+Both inherited `notes` (and `plantedAt`) from the _write_ shape, where they are
+`optional()`. The API stores them as `null` — `PUT` replaces the whole record,
+so an omitted field is written as null rather than left off. The results were
+silent on the server and total on the client: one plot without notes made the
+whole list fail to parse and `/plots` showed its error state, and a null
+`plantedAt` went through `z.coerce.date()` as **1 January 1970**, which the new
+crop-stage bar would have rendered as ready to harvest.
+
+Fixed by saying `nullish()` on the read schemas, and each suite now parses real
+API output through the schema the PWA's store uses. That assertion belongs on
+the client; there is no runner there yet, so it lives where it can be made
+today. This is exactly the class of defect the "not exercised in a browser" gap
+has been hiding since Day 9.
+
+### Known gaps and risks
+
+- **Still not exercised in a real browser.** No driver in the repo, and these
+  screens sit behind a session, a profile and a running API. The bug above was
+  found by reading the schema against the service, not by opening the app —
+  which is the argument for a client test runner rather than for more reading.
+- **No client tests.** Adding a runner means adding a dependency, which needs a
+  decision rather than a commit. The store's merge into two lists, `groupTasks`,
+  `cropStage` and the date helpers are pure functions sitting there waiting for
+  one.
+- **Nothing checks that every template key has a translation.** Verified once,
+  key by key, against the server's template file when these were written; an
+  activity added to the agronomy file later will render its key on the row and
+  no test will say so. The check belongs in the client runner that does not
+  exist.
+- **The Tamil and Sinhala strings are machine-written**, as on every day since
+  Day 9 — and there are now 100 of them carrying agronomic instruction, which
+  raises the stakes of a bad translation from awkward to wrong. The agronomy
+  underneath them is still unreviewed.
+- **The calendar is not offline-first.** Every action needs a connection; the
+  Dexie outbox is Week 6, and a second cached copy here would only have to be
+  reconciled with it later. Same position as `plotStore`.
+- **A completed template task and its regenerated counterpart coexist.** Day
+  11A's decision, visible now: correcting a planting day after ticking off the
+  sowing leaves the old tick in "Done" and a fresh sowing task in the plan.
+  Correct as a record, and it will read as a duplicate to somebody.
+- **`npm run format:check` still flags files on line endings alone.** CRLF in
+  the Windows working tree against Prettier's `endOfLine: "lf"`; the committed
+  content is LF. A `.gitattributes` with `* text=auto eol=lf` would end it.
+
+### Dependencies added
+
+None.
