@@ -98,6 +98,23 @@ export const plotSchema = plotWritableSchema.extend({
   /** Always present on a saved plot, whatever the client sent. */
   centroid: geoPointSchema,
   /**
+   * `null` when nothing is in the ground -- **not** absent.
+   *
+   * The two nullable fields below are the difference between what a client may
+   * *send* and what the API *stores*. `PUT` replaces the whole plot, so an
+   * omitted `plantedAt` is written as `null` rather than left off, which keeps
+   * "cleared" distinguishable from "never set" without a client inspecting
+   * which keys came back. The write schema above therefore says `optional()`
+   * and the read schema has to say `nullable()`; inheriting the write shape
+   * here made every unplanted plot fail to parse on the client -- and, worse,
+   * made `z.coerce.date()` read a null planting day as 1 January 1970.
+   *
+   * `nullish` rather than `nullable` so a document written before the field
+   * existed still parses.
+   */
+  plantedAt: z.coerce.date().nullish(),
+  notes: z.string().max(500).nullish(),
+  /**
    * Bumped on every write, including the soft delete. The client compares it
    * to the version it last saw to decide whether its offline copy is stale.
    */

@@ -3,6 +3,8 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 
+import { plotSchema } from '@agrisense/shared';
+
 import { FarmerModel, PlotModel, type Farmer, type FarmerRole, type Plot } from '@models';
 
 import { createApp } from '../../app';
@@ -205,6 +207,32 @@ describe('PUT /plots/:id', () => {
     // A valid v1 UUID: version nibble 1, which encodes a MAC and a timestamp.
     const v1 = '2c5ea4c0-4067-11e9-8bad-9b1deb4d3b7d';
     expect((await authed('put', token, `/${v1}`).send(FULL_PLOT)).status).toBe(422);
+  });
+});
+
+describe('the response contract', () => {
+  it('parses against the shared plotSchema, planted or not', async () => {
+    const { token } = await seedFarmer();
+    await createPlot(token);
+    // The one the client actually has most of: no boundary, no planting day,
+    // no notes -- all of which the API returns as `null` rather than omitting.
+    await authed('put', token, `/${randomUUID()}`).send({
+      name: 'Home garden',
+      crop: 'CHILLI',
+      areaAcres: 0.25,
+      centroid: { type: 'Point', coordinates: [80.41, 8.31] },
+    });
+
+    const response = await authed('get', token);
+
+    // The schema the PWA's store parses every response with. Asserted here
+    // because the client has no test runner yet, and the failure it catches is
+    // silent on the server and total on the client: a `notes: null` the write
+    // schema calls a string stops the whole list from parsing.
+    for (const plot of body<PlotListBody>(response).plots) {
+      const parsed = plotSchema.safeParse(plot);
+      expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
+    }
   });
 });
 

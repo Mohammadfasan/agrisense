@@ -3,6 +3,8 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 
+import { calendarTaskSchema } from '@agrisense/shared';
+
 import { CalendarTaskModel, FarmerModel, type CalendarTask, type Farmer } from '@models';
 
 import { createApp } from '../../app';
@@ -250,6 +252,26 @@ describe('template generation', () => {
     // they no longer have.
     expect(await tasksOf(plotId)).toHaveLength(0);
     expect(body<TaskListBody>(await calendar('get', token)).tasks).toHaveLength(0);
+  });
+});
+
+describe('the response contract', () => {
+  it('parses against the shared calendarTaskSchema, with and without notes', async () => {
+    const { token } = await seedFarmer();
+    // A generated calendar (every task carries a description key) plus a
+    // manual task with no note at all, which the API returns as `null`.
+    const plotId = await createPlot(token);
+    await createTask(token, plotId);
+
+    const response = await calendar('get', token, `?plotId=${plotId}`);
+
+    // The schema the PWA's store parses every response with. Asserted here
+    // because the client has no test runner yet, and the failure it catches is
+    // silent on the server and total on the client.
+    for (const task of body<TaskListBody>(response).tasks) {
+      const parsed = calendarTaskSchema.safeParse(task);
+      expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
+    }
   });
 });
 

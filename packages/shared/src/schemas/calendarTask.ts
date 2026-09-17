@@ -193,6 +193,14 @@ export const calendarTaskSchema = calendarTaskWritableSchema.extend({
   _id: calendarTaskIdSchema,
   /** The owning farmer's ObjectId, rendered as a hex string in JSON. */
   userId: z.string(),
+  /**
+   * `null` when the task carries no note -- **not** absent. `PUT` replaces the
+   * whole task, so an omitted note is written as `null`; the write shape above
+   * says `optional()` and the read shape has to say `nullable()`, or every
+   * task without a note fails to parse on the client. The same split as
+   * `plotSchema.notes`.
+   */
+  notes: z.string().max(500).nullish(),
   /** Always present on a saved task, `null` until the work is done. */
   completedOn: isoDateSchema.nullable(),
   source: taskSourceSchema,

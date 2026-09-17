@@ -103,7 +103,9 @@ export function toFormValues(plot: PlotRecord): PlotFormValues {
     areaAcres: plot.areaAcres,
     latitude,
     longitude,
-    plantedAt: plot.plantedAt === undefined ? '' : toDateInput(plot.plantedAt),
+    // `== null`: the API sends `null` for an unplanted plot, and an older
+    // document may have no key at all.
+    plantedAt: plot.plantedAt == null ? '' : toDateInput(plot.plantedAt),
     notes: plot.notes ?? '',
   };
 }
