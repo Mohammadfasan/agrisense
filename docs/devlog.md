@@ -214,3 +214,109 @@ to draw.
 
 None. `crypto.randomUUID` falls back to the `uuid` package, which was already a
 dependency of the API client.
+
+---
+
+## Day 10 Part C — Mobile home shell (client)
+
+**Shipped.** A home screen at `/` behind `RequireProfile`, laid out for a 360px
+phone: a greeting by name, a leaf-scan card, a plots summary card, and a two-up
+row for market prices and the profile. A rebuilt farmer shell around it — a
+compact header with a connectivity slot and a notification bell, and a
+four-tab bottom nav whose targets clear 48px. One flag per unfinished feature
+in `app/features.ts`, read by the nav, the cards and the router. LKR currency
+formatting in the i18n layer, before the screen that needs it exists. Tamil and
+Sinhala keys alongside the English ones — 152 keys in each of the three
+catalogues, parity verified. Housekeeping: `baseUrl` is gone from every
+tsconfig in the repo. 96 server tests pass, all three workspaces typecheck and
+lint clean, and the client builds to 13 chunks totalling 662,586 bytes of JS.
+
+### Decisions not specified in the brief
+
+**The home screen is nearly empty, and that is the feature.** Recent scans,
+live prices, a weather forecast and outbreak alerts are all things a dashboard
+here would show, and not one of them has a data source before Week 5. The cost
+of a placeholder card with a plausible number in it is not a wasted afternoon;
+it is that a farmer who discovers one number on this app was invented has no
+reason to believe the disease warning when it arrives.
+
+**Four bottom-nav tabs, not five.** Market prices was the fifth. On a 360px
+phone a fifth column is 72px, which cannot hold a 48px target with a wrapped
+"சுயவிவரம்"-length label under it. Prices live on the home screen as a card
+until Week 7, and the tab comes back when there is something behind it.
+
+**A disabled feature is not routable.** `FEATURES.scan.enabled` gates the nav
+item, the home card _and_ the route, so there is no state where the tab is grey
+but typing `/scan` opens a half-built screen. Turning the feature on is editing
+one `false`. A side effect worth noting: with `/market` unmounted, recharts is
+no longer in the production build at all.
+
+**Disabled things are `<span>`s and `<div>`s, not disabled `<button>`s.** A card
+for a feature that does not exist is not a control that happens to be off — it
+is text, and it becomes a real `<Link>` the moment its flag flips. So it stays
+out of the tab order, and the "coming soon" badge carries the reason for
+everyone, with an `sr-only` copy where the badge would not fit (the nav, the
+bell).
+
+**48px targets, not the 44px the guideline allows.** WCAG 2.5.5 is written for
+someone sitting down. This audience is standing in a field, one hand on the
+phone, sun on the glass, often with wet hands. New `touch-md` token; the old
+`touch` (44px) stays for forms.
+
+**The plots total is shown only when the whole list is loaded.** `/plots` is
+cursor-paged, so summing the store after one page would under-report the acres
+of anyone with more plots than a page holds — and a partial total is
+indistinguishable from a correct one. Until the list is complete the card says
+"Plots" and leads to the screen that can explain itself.
+
+**`ConnectivityStatus` replaces `OfflineBanner`.** Offline is this user's
+normal condition, not an incident, and a full-width warning bar several times
+an hour trains someone to ignore the bar. It is a chip in the header instead,
+and it is where Week 6 appends "· N pending" from the outbox. It reads no sync
+state today on purpose: a count rendered over a sync engine that does not exist
+is a claim the app cannot back.
+
+**Currency is in the i18n layer with no price screen to use it.** The first
+place a number gets a currency beside it is the place the symbol gets
+hardcoded, and on this project the symbol that would be hardcoded is `₹` —
+every Indian-market example and every Tamil-language design reference writes
+it. This is Sri Lanka: LKR, "Rs.". The digits are grouped by `Intl` in the
+farmer's language and the symbol comes from the catalogues, because `Intl`'s
+own LKR symbol disagrees with itself across locales — on one runtime `si` gives
+"රු." while `ta` and `en` both give "LKR".
+
+**Tamil and Sinhala get their own rupee abbreviation** — "ரூ." and "රු." — not
+a transliterated "Rs.". It is one catalogue string per language if that call is
+wrong; what cannot appear in any of them is the Indian sign.
+
+**`baseUrl` removal changed the server's aliases, not just the client's.** The
+client's `@/*` was already the erroring one and is now `./src/*`, matching
+`vite.config.ts`. The server's eight aliases were written against
+`baseUrl: "./src"` and are now rooted at their own tsconfig. Verified through
+all three consumers: `tsc`, `tsc-alias` on the build output, and
+`vite-tsconfig-paths` under vitest.
+
+### Known gaps and risks
+
+- **The Tamil and Sinhala strings are machine-written and need a native
+  reviewer**, as on Days 9 and 10B. Key parity is verified; wording and
+  register are not. The greeting and the rupee abbreviations are the two worth
+  a second opinion first.
+- **Still not exercised in a real browser.** No browser driver in the repo, and
+  the screen sits behind a session and a profile. Typecheck, lint, the server
+  suite and the production build pass; the 360px layout, the wrapped nav labels
+  and the disabled states have not been looked at on a phone.
+- **No client tests.** Adding a runner to the client means adding a dependency,
+  which needs a decision rather than a commit. `formatCurrency` and the plots
+  summary — the rounding, the plural forms, the paged-list guard — are the
+  first things worth covering when there is one.
+- **The notification bell is inert chrome.** It is on screen so that the place a
+  farmer will look for a district warning does not move in Week 8, which is a
+  bet that it reads as "not yet" rather than as "broken".
+- **`README.md` and `client/package.json` fail `format:check`** on line endings
+  alone (CRLF in the working tree). Pre-existing, untouched here, and a
+  whole-file rewrite either way — left for a commit that is about nothing else.
+
+### Dependencies added
+
+None.
