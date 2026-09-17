@@ -53,6 +53,18 @@ export const ErrorCode = {
    * that a given UUID exists. See `plot.service`.
    */
   PLOT_NOT_FOUND: 'PLOT_NOT_FOUND',
+
+  // --- Crop calendar ---
+  /**
+   * No calendar task with that id is readable by this caller -- never used,
+   * another farmer's, or deleted. Identical in all three cases, for the reason
+   * on `PLOT_NOT_FOUND`.
+   *
+   * A write naming a plot the caller does not own answers `PLOT_NOT_FOUND`
+   * instead: it is the plot that could not be found, and the task was never
+   * created to be missing.
+   */
+  CALENDAR_TASK_NOT_FOUND: 'CALENDAR_TASK_NOT_FOUND',
 } as const;
 
 export type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode];

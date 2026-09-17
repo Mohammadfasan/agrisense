@@ -3,7 +3,7 @@ import express, { type Express } from 'express';
 import helmet from 'helmet';
 
 import { env } from '@config';
-import { authRouter, farmersRouter, healthRouter, plotsRouter } from '@modules';
+import { authRouter, calendarRouter, farmersRouter, healthRouter, plotsRouter } from '@modules';
 import { drainGuard, errorHandler, notFound, requestId, requestLogger } from '@shared';
 
 /**
@@ -57,5 +57,6 @@ function createApiRouter(): express.Router {
   router.use('/auth', authRouter);
   router.use('/farmers', farmersRouter);
   router.use('/plots', plotsRouter);
+  router.use('/calendar', calendarRouter);
   return router;
 }

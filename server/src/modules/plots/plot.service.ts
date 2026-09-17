@@ -14,6 +14,11 @@ import {
   type PlotUpdateInput,
 } from '@shared';
 
+// Straight at the service rather than through `@modules`, whose barrel this
+// module is itself reachable from. The dependency is one-way: the calendar
+// knows about plots, and this is the one place plots know about the calendar.
+import { discardTasksForPlot, syncTemplateTasks } from '../calendar/calendarTask.service';
+
 /**
  * Plot reads and writes.
  *
@@ -113,6 +118,12 @@ export async function getById(userId: string, plotId: string): Promise<Plot> {
  */
 export async function save(userId: string, plotId: string, input: PlotInput): Promise<SaveResult> {
   const owner = toObjectId(userId);
+  // Read before the write, and only for this: the crop calendar has to know
+  // whether the planting day *moved*, which the upsert's own result cannot
+  // say. Deliberately not a branch the write depends on -- the upsert stays
+  // the single atomic operation it was, and a concurrent one racing this read
+  // can at worst regenerate a calendar that did not need it.
+  const plantedBefore = await plantedAtOf(owner, plotId);
 
   try {
     const result = await PlotModel.findOneAndUpdate(
@@ -141,10 +152,10 @@ export async function save(userId: string, plotId: string, input: PlotInput): Pr
       },
     ).exec();
 
-    return {
-      plot: expectWritten(result.value),
-      created: result.lastErrorObject?.upserted !== undefined,
-    };
+    const plot = expectWritten(result.value);
+    await syncTemplateTasks(plot, plantedBefore);
+
+    return { plot, created: result.lastErrorObject?.upserted !== undefined };
   } catch (error) {
     // The filter matched nothing, so MongoDB tried to insert -- and the `_id`
     // was already taken. Either another farmer owns that UUID, or this farmer
@@ -171,8 +182,15 @@ export async function update(
   plotId: string,
   patch: PlotUpdateInput,
 ): Promise<Plot> {
+  const owner = toObjectId(userId);
+  // Only when the patch could move the planting day. A patch that does not
+  // mention `plantedAt` cannot change the calendar, and the read is not worth
+  // making on every rename.
+  const plantedBefore =
+    patch.plantedAt === undefined ? undefined : await plantedAtOf(owner, plotId);
+
   const plot = await PlotModel.findOneAndUpdate(
-    liveOwnedBy(toObjectId(userId), plotId),
+    liveOwnedBy(owner, plotId),
     // Beyond the centroid the patch goes in as-is: Zod has already stripped
     // everything not in the schema, so no unknown path and no `$` operator
     // survives to reach here.
@@ -184,6 +202,10 @@ export async function update(
 
   if (!plot) {
     throw plotNotFound();
+  }
+
+  if (plantedBefore !== undefined) {
+    await syncTemplateTasks(plot, plantedBefore);
   }
   return plot;
 }
@@ -208,6 +230,11 @@ export async function softDelete(userId: string, plotId: string): Promise<void> 
   if (result.matchedCount === 0) {
     throw plotNotFound();
   }
+
+  // The plot's calendar goes with it, manual tasks included. They are work on
+  // a field the farmer has just said they no longer have, and left behind they
+  // would keep appearing under "what is due" with nothing to open.
+  await discardTasksForPlot(toObjectId(userId), plotId);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -315,6 +342,19 @@ function decodeCursor(cursor: string): { updatedAt: Date; id: string } {
     ]);
   }
   return { updatedAt, id };
+}
+
+/**
+ * The plot's planting day as it stands right now, or `null` if the plot is not
+ * there yet. Projected to the one field, because that is all the caller wants.
+ */
+async function plantedAtOf(userId: Types.ObjectId, plotId: string): Promise<Date | null> {
+  const existing = await PlotModel.findOne(liveOwnedBy(userId, plotId))
+    .select('plantedAt')
+    .lean<Pick<Plot, 'plantedAt'>>()
+    .exec();
+
+  return existing?.plantedAt ?? null;
 }
 
 function plotNotFound(): AppError {
