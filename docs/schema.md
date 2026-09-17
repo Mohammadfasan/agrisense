@@ -733,6 +733,79 @@ validatable on the client, offline, where no ObjectId means anything.
 
 ---
 
+## 19. `calendarTasks`
+
+**Implemented — Day 11.** `server/src/models/calendarTask.model.ts`.
+
+One thing to do, on one plot, on one day. Generated from the crop calendar when
+a plot is planted, or written by the farmer.
+
+| Field         | Type     | Required | Notes                                                                                 |
+| ------------- | -------- | -------- | ------------------------------------------------------------------------------------- |
+| `_id`         | String   | ✓        | **UUID v4**, lower case — client's, or the generator's                                |
+| `userId`      | ObjectId | ✓        | ref `farmers`                                                                         |
+| `plotId`      | String   | ✓        | ref `plots` — a UUID, because `plots._id` is one                                      |
+| `type`        | Enum     | ✓        | `sowing` \| `fertilising` \| `irrigation` \| `pest_control` \| `weeding` \| `harvest` |
+| `title`       | String   | ✓        | 1–100. Free text, or an **i18n key** — see below                                      |
+| `notes`       | String   |          | Max 500. Free text, or the description's i18n key                                     |
+| `dueDate`     | String   | ✓        | **`YYYY-MM-DD`**, not a Date — see below                                              |
+| `completedOn` | String   |          | `YYYY-MM-DD`, null while outstanding                                                  |
+| `source`      | Enum     | ✓        | `template` \| `manual`. Server-owned                                                  |
+| `reminderAt`  | String   |          | ISO 8601 instant. **Reserved for Week 9**; nothing reads it                           |
+| `version`     | Number   | ✓        | Default 1; `$inc` on every write                                                      |
+| `deletedAt`   | Date     |          | Null when live. Soft delete                                                           |
+
+**Indexes**
+
+```js
+{ userId: 1, plotId: 1, deletedAt: 1, dueDate: 1 }   // one plot's calendar
+{ userId: 1, deletedAt: 1, dueDate: 1 }              // /calendar/upcoming
+```
+
+**Why days are strings.** A farming task happens on a day; "top-dress on 12
+June" has no hour on it and never will. Sri Lanka is UTC+05:30, so a `Date` at
+local midnight stores as 18:30 the previous day and every task in the app
+shifts back one. The half-hour offset rules out the usual escapes too:
+truncating to midnight in the server's zone moves some values and not others,
+which is worse than moving all of them because it looks correct in testing.
+`YYYY-MM-DD` sorts lexically in the order it sorts chronologically, so `$gte`
+/`$lte` ranges and index sorts work on the string unchanged.
+
+**Why two indexes when the brief names one.** The first cannot serve
+`/calendar/upcoming`, which names no plot: `plotId` sits in the middle of it, so
+an unconstrained query gets `userId` as its only usable prefix and leaves the
+date range and the sort to be done in memory over every task the farmer owns.
+
+**`title` is sometimes a key.** A template task stores
+`calendar.task.paddy.topDressing1.title`, not a sentence, because the server has
+no business choosing which of three languages to write a farmer's calendar in
+and the farmer may switch language afterwards. `source` is what tells a client
+whether to translate the field or print it. The agronomy behind those keys is
+`server/src/data/crop-calendar-templates.json`, deliberately data rather than
+code so an agronomist can correct it.
+
+**`source` and `completedOn` are not client-writable through `PUT`.** A client
+that could claim `template` could hide a task from regeneration; and completion
+is lifecycle state, like `version` and `deletedAt`, so a replayed offline edit
+cannot silently un-tick finished work. `PATCH` may set `completedOn` explicitly,
+including to `null`. See `docs/api-spec.md`.
+
+**Regeneration is narrow.** When a plot's `plantedAt` moves, outstanding
+`template` tasks for that plot are tombstoned and rebuilt from the new day.
+Manual tasks are never touched, and neither is anything with a `completedOn` —
+a tick records something that happened in a field, and tidying up a plan must
+not delete history.
+
+**Relationship to §7 `plantings` and §8 `activities`.** Neither is implemented.
+When they are, `plantings` becomes the season a task belongs to and `activities`
+the log of work actually done; this collection stays the _plan_. The two type
+vocabularies are deliberately separate — `activities.type` uses `fertilizer`
+and `pesticide` for a record, `calendarTasks.type` uses `fertilising` and
+`pest_control` for an intention — and neither should be quietly widened into
+the other.
+
+---
+
 ## Aggregation Pipelines
 
 ### Officer dashboard — disease counts by district
