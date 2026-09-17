@@ -78,7 +78,7 @@ function NotificationBell(): ReactElement {
     <button
       type="button"
       disabled={!enabled}
-      className="inline-flex min-h-touch-md min-w-touch-md items-center justify-center rounded-full text-muted-700 hover:bg-muted-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:pointer-events-none disabled:text-muted-400"
+      className="inline-flex min-h-touch-md min-w-touch-md items-center justify-center rounded-full text-muted-700 hover:bg-muted-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:pointer-events-none disabled:text-muted"
     >
       <Bell className="h-6 w-6" aria-hidden />
       <span className="sr-only">
@@ -108,7 +108,7 @@ function SidebarNav(): ReactElement {
 
         if (!isNavItemEnabled(item)) {
           return (
-            <DisabledNavItem key={to} className={cx(shared, 'text-muted-400')}>
+            <DisabledNavItem key={to} className={cx(shared, 'text-muted')}>
               <Icon className="h-5 w-5 shrink-0" aria-hidden />
               {label}
             </DisabledNavItem>
@@ -158,7 +158,7 @@ function BottomNav(): ReactElement {
 
         if (!isNavItemEnabled(item)) {
           return (
-            <DisabledNavItem key={to} className={cx(shared, 'text-muted-400')}>
+            <DisabledNavItem key={to} className={cx(shared, 'text-muted')}>
               <Icon className="h-6 w-6" aria-hidden />
               <NavLabel>{label}</NavLabel>
             </DisabledNavItem>
