@@ -320,3 +320,120 @@ all three consumers: `tsc`, `tsc-alias` on the build output, and
 ### Dependencies added
 
 None.
+
+---
+
+## Day 11 Part A — Crop calendar API (server)
+
+**Shipped.** A `calendarTasks` collection, `/api/v1/calendar` (list, upcoming,
+`PUT`, `PATCH`, complete, soft delete) behind `authenticate` + `authorise('farmer')`,
+crop calendar templates for all five crops as reviewable data, task generation
+wired into plot writes, and day-level date handling in `@agrisense/shared`. 122
+server tests pass, 25 of them new. All three workspaces typecheck and lint
+clean; the server and client both build.
+
+### Decisions not specified in the brief
+
+**The module is `server/src/modules/calendar/`, not `server/src/routes/`.** The
+brief named the latter. Every feature in this API is a module — routes,
+controller and service together, mounted through `@modules` — and a lone
+`routes/` directory would be the only one of its kind. The rest of the brief
+said to follow the plots patterns exactly, and this is one of them.
+
+**`title` carries an i18n key on template tasks.** The model the brief specified
+has `title` and `notes`; the template file it specified has `titleKey` and
+`descriptionKey`. The only consistent reading is that a generated task stores the
+key in `title` and the description key in `notes`, and that `source` is what
+tells a client whether to translate the field or print it. A manual task's title
+is what the farmer typed, in whatever language they typed it.
+
+**`source` and `completedOn` are not writable through `PUT`.** A client that
+could claim `template` could hide a task from regeneration, or hand the
+generator a task it will delete; `source` is `$setOnInsert: 'manual'` and is
+left alone on every replace. Completion is lifecycle state rather than content —
+the same category as `version` and `deletedAt`, which `PUT` does not clear
+either — so a phone replaying a two-day-old title edit cannot silently un-tick
+finished work. `PATCH` _may_ set `completedOn`, including to `null`: a patch
+names the field it means, and undoing an accidental tick has to be expressible.
+
+**A second index.** The brief's `{ userId, plotId, deletedAt, dueDate }` cannot
+serve `/calendar/upcoming`, which names no plot: `plotId` sits in the middle, so
+an unconstrained query gets `userId` as its only usable prefix and sorts every
+task the farmer owns in memory. `{ userId, deletedAt, dueDate }` was added
+beside it.
+
+**`/upcoming` includes overdue work and excludes completed work.** Neither is in
+the name. A ticked task answers a different question from "what do I do next",
+and a task due yesterday and not done is the most urgent thing a farmer owns —
+a list that dropped it would hide a missed spray behind a clean screen. The
+`days` window bounds the future end only.
+
+**"Today" is today in Colombo.** `POST /:id/complete` takes the day from the
+client when it sends one, because the phone knows what day it is where the
+farmer is standing. The server's fallback shifts by +05:30 before taking the
+date, or every completion between 18:30 and midnight UTC would be recorded
+yesterday — which is the same bug the string dates exist to prevent.
+
+**Regeneration is guarded on the planting day actually moving.** Every rebuild
+mints new task ids, so regenerating on every `PUT` would churn a calendar the
+phone is holding and force a reconcile of something that did not change.
+`plot.service` reads the plot's `plantedAt` before the upsert for this, and only
+for this; the upsert itself is still one atomic operation.
+
+**Replaced template tasks are tombstoned, not removed.** A phone holding
+yesterday's calendar has to be able to learn that those tasks are gone, and a
+row that vanished tells it nothing — the same reasoning as every other delete in
+`plots` and `calendarTasks`.
+
+**Regeneration rebuilds the whole template, including activities whose old
+counterpart was completed.** The completed task is kept as history and the fresh
+one appears beside it. The alternative — suppressing an activity because
+something of that type was ticked — is fuzzy matching on a plan the farmer just
+corrected.
+
+**Deleting a plot deletes its calendar, manual tasks included.** This is the one
+place a manual task is not sacred: it is work on a field the farmer has just
+said they no longer have, and left behind it would sit on the "what is due" list
+with nothing to open.
+
+**`GET /calendar` has a `limit` and no cursor.** The date range _is_ the paging;
+a client wanting less asks for a narrower window. The cap (200, max 500) exists
+so that a request with no range at all is still a bounded response.
+
+**A backwards range is a `422`.** An empty list would be defensible and worse: a
+client that swapped its two parameters would show "nothing due" rather than
+saying what it asked for.
+
+**`plotIdSchema` now points at a shared `uuidV4Schema`.** Two collections need
+the same v4-only, lower-cased id, and a second copy of that regex is a second
+thing to keep right. No behaviour change.
+
+### Known gaps and risks
+
+- **The agronomy is unreviewed.** Every `dayOffset` and `totalDays` in
+  `crop-calendar-templates.json` is indicative dry-zone timing compiled from
+  general guidance, and the file says so in its own `reviewStatus`. It needs an
+  agronomist before release. That it is data rather than code is the point: the
+  correction does not need a developer.
+- **The i18n keys have no translations yet.** 50 activities × 2 keys × 3
+  languages, all for Part B. Until then a client renders the key.
+- **Regeneration is not transactional.** The deployment is a single mongod and
+  this repo takes no dependency on a replica set, so the tombstone and the
+  rebuild are two writes. The exposure is a delete that lands without its
+  rebuild — an empty calendar, recoverable by re-saving the plot — which is why
+  the delete is scoped to outstanding template tasks only and can never touch a
+  manual or completed one.
+- **`reminderAt` is stored and read by nothing.** Week 9. The field exists so
+  the contract settles before the worker does.
+- **Sri Lanka's UTC offset is a constant**, not a lookup. The country has
+  observed +05:30 with no daylight saving since 2006; if that ever changes, one
+  constant in `domain/dates.ts` is where it lives.
+- **`npm run format:check` now flags ~80 files.** All of it is CRLF in the
+  Windows working tree against Prettier's `endOfLine: "lf"`; the committed
+  content is LF, and the count grew because the pre-commit stash rewrites files
+  through git's autocrlf filter. A `.gitattributes` with `* text=auto eol=lf`
+  would end it, and is a repo-wide commit of its own.
+
+### Dependencies added
+
+None.
