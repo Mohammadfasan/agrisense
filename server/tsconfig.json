@@ -5,17 +5,19 @@
     "moduleResolution": "Node",
     "outDir": "./dist",
     "rootDir": "./src",
-    "baseUrl": "./src",
     "types": ["node"],
+    // No `baseUrl`: it is deprecated in TypeScript 7, and every mapping below
+    // is written relative to this file instead, which is what a path without a
+    // base is resolved against.
     "paths": {
-      "@config": ["config/index.ts"],
-      "@config/*": ["config/*"],
-      "@models": ["models/index.ts"],
-      "@models/*": ["models/*"],
-      "@modules": ["modules/index.ts"],
-      "@modules/*": ["modules/*"],
-      "@shared": ["shared/index.ts"],
-      "@shared/*": ["shared/*"]
+      "@config": ["./src/config/index.ts"],
+      "@config/*": ["./src/config/*"],
+      "@models": ["./src/models/index.ts"],
+      "@models/*": ["./src/models/*"],
+      "@modules": ["./src/modules/index.ts"],
+      "@modules/*": ["./src/modules/*"],
+      "@shared": ["./src/shared/index.ts"],
+      "@shared/*": ["./src/shared/*"]
     }
   },
   "include": ["src/**/*.ts"],
