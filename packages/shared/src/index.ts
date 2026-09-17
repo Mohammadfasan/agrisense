@@ -20,6 +20,17 @@ export {
   type LocaleCode,
 } from './types.js';
 export { CROP_CODES, cropCodeSchema, isCropCode, type CropCode } from './domain/crops.js';
+export {
+  ISO_DATE_PATTERN,
+  SRI_LANKA_UTC_OFFSET_MINUTES,
+  addDays,
+  isIsoDate,
+  isoDateSchema,
+  toIsoDate,
+  todayInSriLanka,
+  type IsoDate,
+} from './domain/dates.js';
+export { UUID_V4_PATTERN, isUuidV4, uuidV4Schema } from './domain/uuid.js';
 export { DISTRICTS, districtSchema, isDistrict, type District } from './domain/districts.js';
 export {
   farmerProfileSchema,
@@ -28,6 +39,33 @@ export {
   type FarmerProfileRecord,
   type FarmerProfileUpdateInput,
 } from './schemas/farmerProfile.js';
+export {
+  ACTIVITY_TYPES,
+  CALENDAR_PAGE_SIZE_DEFAULT,
+  CALENDAR_PAGE_SIZE_MAX,
+  CALENDAR_UPCOMING_DAYS_DEFAULT,
+  CALENDAR_UPCOMING_DAYS_MAX,
+  TASK_SOURCES,
+  activityTypeSchema,
+  calendarListQuerySchema,
+  calendarTaskCompleteSchema,
+  calendarTaskCreateSchema,
+  calendarTaskIdSchema,
+  calendarTaskSchema,
+  calendarTaskUpdateSchema,
+  calendarUpcomingQuerySchema,
+  isActivityType,
+  taskSourceSchema,
+  type ActivityType,
+  type CalendarListQuery,
+  type CalendarTaskCompleteInput,
+  type CalendarTaskId,
+  type CalendarTaskInput,
+  type CalendarTaskRecord,
+  type CalendarTaskUpdateInput,
+  type CalendarUpcomingQuery,
+  type TaskSource,
+} from './schemas/calendarTask.js';
 export {
   PLOT_PAGE_SIZE_DEFAULT,
   PLOT_PAGE_SIZE_MAX,

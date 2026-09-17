@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { cropCodeSchema } from '../domain/crops.js';
+import { uuidV4Schema } from '../domain/uuid.js';
 import { geoPointSchema, geoPolygonSchema } from '../types.js';
 
 /**
@@ -18,22 +19,10 @@ import { geoPointSchema, geoPolygonSchema } from '../types.js';
  */
 
 /**
- * UUID v4, and only v4.
- *
- * Zod's own `.uuid()` accepts every version, including v1, which encodes the
- * generating machine's MAC address and a timestamp. Those are guessable in
- * bulk, and a plot id that can be guessed is a plot id that can be probed for.
- *
- * Normalised to lower case rather than merely accepted in either case. The
- * same UUID typed two ways must resolve to the same row, or the Week 6 sync
- * upsert stops being idempotent the first time a client changes its casing.
+ * A plot id: a lower-cased UUID v4. See `domain/uuid.ts` for why only v4 and
+ * why the case is normalised.
  */
-const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-export const plotIdSchema = z
-  .string()
-  .regex(UUID_V4, 'must be a UUID v4')
-  .transform((value) => value.toLowerCase());
+export const plotIdSchema = uuidV4Schema;
 
 export type PlotId = z.infer<typeof plotIdSchema>;
 
