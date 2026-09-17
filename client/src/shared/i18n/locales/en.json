@@ -320,6 +320,218 @@
       "complete": "Could not update this task. Check your connection.",
       "gone": "This task is no longer there. It may have been deleted.",
       "validation": "Check the details and try again."
+    },
+    "task": {
+      "paddy": {
+        "sowing": {
+          "title": "Sow the paddy",
+          "description": "Broadcast or transplant into the puddled field."
+        },
+        "establishWater": {
+          "title": "Flood the field",
+          "description": "Hold 2-3 cm of water while the seedlings settle."
+        },
+        "topDressing1": {
+          "title": "First urea dressing",
+          "description": "Top-dress with urea now the seedlings have taken."
+        },
+        "weeding1": {
+          "title": "First weeding",
+          "description": "Weed between the rows before the crop closes in."
+        },
+        "pestScout1": {
+          "title": "Check for leaf folder",
+          "description": "Walk the field and look for rolled, chewed leaves."
+        },
+        "topDressing2": {
+          "title": "Second urea dressing",
+          "description": "Top-dress again as the crop tillers strongly."
+        },
+        "midSeasonWater": {
+          "title": "Top up the water",
+          "description": "Bring the water back to 3-5 cm while it tillers."
+        },
+        "pestScout2": {
+          "title": "Check for planthopper",
+          "description": "Part the canopy and look for hoppers on the stems."
+        },
+        "panicleDressing": {
+          "title": "Panicle dressing",
+          "description": "The last dressing, as the panicles start to form."
+        },
+        "drainField": {
+          "title": "Drain the field",
+          "description": "Let the water off about ten days before harvest."
+        },
+        "harvest": {
+          "title": "Harvest the paddy",
+          "description": "Cut when the grain is firm and the panicles have bent."
+        }
+      },
+      "tomato": {
+        "transplant": {
+          "title": "Plant out the seedlings",
+          "description": "Set them out late in the day and water them in."
+        },
+        "establishWater": {
+          "title": "Water in",
+          "description": "Keep the soil damp for the first week while roots take."
+        },
+        "topDressing1": {
+          "title": "First top dressing",
+          "description": "Feed once the plants start putting on new leaves."
+        },
+        "weeding1": {
+          "title": "First weeding",
+          "description": "Clear the weeds before they take the fertiliser."
+        },
+        "whitefly": {
+          "title": "Check for whitefly",
+          "description": "Turn leaves over; look for whitefly and curled tips."
+        },
+        "topDressing2": {
+          "title": "Second top dressing",
+          "description": "Feed again as the first flowers set."
+        },
+        "fruitBorer": {
+          "title": "Check for fruit borer",
+          "description": "Look for holes in young fruit; remove what is hit."
+        },
+        "topDressing3": {
+          "title": "Third top dressing",
+          "description": "One more feed while the fruit is filling."
+        },
+        "firstPicking": {
+          "title": "First picking",
+          "description": "Pick as fruit colours, every two or three days."
+        },
+        "finalPicking": {
+          "title": "Last picking",
+          "description": "Take the last of the fruit and clear the plants."
+        }
+      },
+      "chilli": {
+        "transplant": {
+          "title": "Plant out the seedlings",
+          "description": "Set them out late in the day and water them in."
+        },
+        "establishWater": {
+          "title": "Water in",
+          "description": "Keep the soil damp for the first week while roots take."
+        },
+        "topDressing1": {
+          "title": "First top dressing",
+          "description": "Feed once the plants are growing away."
+        },
+        "weeding1": {
+          "title": "First weeding",
+          "description": "Clear the weeds before they take the fertiliser."
+        },
+        "thrips": {
+          "title": "Check for thrips",
+          "description": "Look for curled, silvered leaves at the growing tips."
+        },
+        "topDressing2": {
+          "title": "Second top dressing",
+          "description": "Feed again as flowering starts."
+        },
+        "anthracnose": {
+          "title": "Check for anthracnose",
+          "description": "Sunken dark spots on the pods; take out what is hit."
+        },
+        "topDressing3": {
+          "title": "Third top dressing",
+          "description": "A last feed while the pods are filling."
+        },
+        "firstPicking": {
+          "title": "First picking",
+          "description": "Pick the pods as they colour, every few days."
+        },
+        "finalPicking": {
+          "title": "Last picking",
+          "description": "Take the last of the pods and clear the plants."
+        }
+      },
+      "onion": {
+        "planting": {
+          "title": "Plant the sets",
+          "description": "Set the bulbs at your spacing and water them in."
+        },
+        "establishWater": {
+          "title": "Water in",
+          "description": "Keep the bed damp while the roots take."
+        },
+        "topDressing1": {
+          "title": "First top dressing",
+          "description": "Feed once the leaves start growing away."
+        },
+        "weeding1": {
+          "title": "First weeding",
+          "description": "Onions lose to weeds. Keep the bed clean."
+        },
+        "thrips": {
+          "title": "Check for thrips",
+          "description": "Look into the leaf sheaths for silvering and insects."
+        },
+        "topDressing2": {
+          "title": "Second top dressing",
+          "description": "Feed again before the bulbs start to swell."
+        },
+        "bulbingWater": {
+          "title": "Water for bulbing",
+          "description": "Keep the water steady; do not let the bed dry out."
+        },
+        "purpleBlotch": {
+          "title": "Check for purple blotch",
+          "description": "Purple patches on the leaves after wet weather."
+        },
+        "harvest": {
+          "title": "Lift the onions",
+          "description": "Lift when the tops fall over; dry them in the shade."
+        }
+      },
+      "brinjal": {
+        "transplant": {
+          "title": "Plant out the seedlings",
+          "description": "Set them out late in the day and water them in."
+        },
+        "establishWater": {
+          "title": "Water in",
+          "description": "Keep the soil damp for the first week while roots take."
+        },
+        "topDressing1": {
+          "title": "First top dressing",
+          "description": "Feed once the plants are growing away."
+        },
+        "weeding1": {
+          "title": "First weeding",
+          "description": "Clear the weeds before they take the fertiliser."
+        },
+        "shootBorer": {
+          "title": "Check for shoot borer",
+          "description": "Cut out and burn wilting shoots before it spreads."
+        },
+        "topDressing2": {
+          "title": "Second top dressing",
+          "description": "Feed again as the first flowers open."
+        },
+        "fruitBorer": {
+          "title": "Check for fruit borer",
+          "description": "Look for entry holes; remove damaged fruit."
+        },
+        "topDressing3": {
+          "title": "Third top dressing",
+          "description": "One more feed while the fruit is filling."
+        },
+        "firstPicking": {
+          "title": "First picking",
+          "description": "Pick the fruit while the skin is still glossy."
+        },
+        "finalPicking": {
+          "title": "Last picking",
+          "description": "Take the last of the fruit and clear the plants."
+        }
+      }
     }
   }
 }
