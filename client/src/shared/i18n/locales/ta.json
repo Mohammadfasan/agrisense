@@ -3,6 +3,11 @@
     "loading": "ஏற்றப்படுகிறது",
     "retry": "மீண்டும் முயற்சி"
   },
+  "currency": {
+    "symbol": "ரூ.",
+    "amount": "{{symbol}} {{amount}}",
+    "perKg": "{{amount}} / கிலோ"
+  },
   "app": {
     "name": "AgriSense",
     "tagline": "ஒவ்வொரு வயலுக்கும் சிறந்த முடிவுகள்."

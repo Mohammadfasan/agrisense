@@ -3,6 +3,11 @@
     "loading": "පූරණය වෙමින්",
     "retry": "නෙවත උත්සාහ කරන්න"
   },
+  "currency": {
+    "symbol": "රු.",
+    "amount": "{{symbol}} {{amount}}",
+    "perKg": "{{amount}} / කි.ග්‍රැ."
+  },
   "app": {
     "name": "AgriSense",
     "tagline": "සෑම කෙතකටම වඩා හොඳ තීරණ."

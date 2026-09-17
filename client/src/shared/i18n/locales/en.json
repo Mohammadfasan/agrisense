@@ -3,6 +3,11 @@
     "loading": "Loading",
     "retry": "Try again"
   },
+  "currency": {
+    "symbol": "Rs.",
+    "amount": "{{symbol}} {{amount}}",
+    "perKg": "{{amount}} / kg"
+  },
   "app": {
     "name": "AgriSense",
     "tagline": "Smarter decisions for every field."
