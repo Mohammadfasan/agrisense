@@ -1,7 +1,8 @@
 {
   "common": {
     "loading": "පූරණය වෙමින්",
-    "retry": "නෙවත උත්සාහ කරන්න"
+    "retry": "නෙවත උත්සාහ කරන්න",
+    "comingSoon": "ඉක්මනින්"
   },
   "currency": {
     "symbol": "රු.",
@@ -19,6 +20,30 @@
     "scan": "ස්කෑන්",
     "market": "වෙළඳපොළ",
     "profile": "පැතිකඩ"
+  },
+  "status": {
+    "offline": "නොබැඳි"
+  },
+  "home": {
+    "greeting": "ආයුබෝවන්, {{name}}",
+    "notifications": "දැනුම්දීම්",
+    "scan": {
+      "title": "කොළයක් ස්කෑන් කරන්න",
+      "description": "රෝග කල්තියා හඳුනා ගැනීමට කොළයක ඡායාරූපයක් ගන්න."
+    },
+    "plots": {
+      "title": "මගේ ඉඩම්",
+      "count_one": "ඉඩම් {{count}}",
+      "count_other": "ඉඩම් {{count}}",
+      "summary": "{{plots}} · {{acres}}",
+      "none": "තවම ඉඩම් නැත. පළමු ඉඩම එක් කිරීමට තට්ටු කරන්න."
+    },
+    "prices": {
+      "title": "වෙළඳපොළ මිල"
+    },
+    "profile": {
+      "title": "මගේ පැතිකඩ"
+    }
   },
   "auth": {
     "panel": {

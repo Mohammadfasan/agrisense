@@ -5,6 +5,7 @@ import { LanguagePage, LoginLayout, PhonePage, VerifyPage, type UserRole } from 
 import { AppShell } from './AppShell';
 import { AuthLayout } from './AuthLayout';
 import { DesktopOnlyRoute } from './DesktopOnlyRoute';
+import { FEATURES } from './features';
 import { ProtectedRoute } from './ProtectedRoute';
 import { RequireProfile } from './RequireProfile';
 import { RoleRoute } from './RoleRoute';
@@ -28,6 +29,11 @@ const OFFICER_PORTAL_ROLES: readonly UserRole[] = ['officer', 'admin'];
  *   ├── /onboarding             signed in, no profile yet; outside RequireProfile
  *   ├── RequireProfile
  *   │   └── /  (AppShell)       bottom nav → sidebar at lg
+ *   │       ├── /               home
+ *   │       ├── /plots, /plots/new, /plots/:id/edit
+ *   │       ├── /scan           only once FEATURES.scan is on (Week 5)
+ *   │       ├── /market         only once FEATURES.prices is on (Week 7)
+ *   │       └── /profile
  *   └── /officer/*  RoleRoute → DesktopOnlyRoute
  *   /dev/components             public; development builds only
  *
@@ -35,6 +41,38 @@ const OFFICER_PORTAL_ROLES: readonly UserRole[] = ['officer', 'admin'];
  * officers have no farmer profile of their own, and `/onboarding` sits outside
  * it because it is where that guard sends people.
  */
+
+/**
+ * The routes behind an unfinished feature, mounted only once its flag is on.
+ *
+ * The flag is what the nav and the home screen read too, so a feature is
+ * either reachable everywhere or nowhere — there is no state where the tab is
+ * greyed out but the URL still opens a half-built screen. A farmer typing
+ * `/scan` before Week 5 lands on the catch-all and goes home.
+ */
+const scanRoutes: RouteObject[] = FEATURES.scan.enabled
+  ? [
+      {
+        path: 'scan',
+        lazy: async () => {
+          const { ScanPage } = await import('@/features/scan');
+          return { Component: ScanPage };
+        },
+      },
+    ]
+  : [];
+
+const priceRoutes: RouteObject[] = FEATURES.prices.enabled
+  ? [
+      {
+        path: 'market',
+        lazy: async () => {
+          const { MarketPage } = await import('@/features/market');
+          return { Component: MarketPage };
+        },
+      },
+    ]
+  : [];
 
 // `import.meta.env.DEV` is the literal `false` in a production build, so this
 // route and the chunk behind its dynamic import are dropped from it entirely.
@@ -116,20 +154,8 @@ export const router = createBrowserRouter([
                   return { Component: PlotFormPage };
                 },
               },
-              {
-                path: 'scan',
-                lazy: async () => {
-                  const { ScanPage } = await import('@/features/scan');
-                  return { Component: ScanPage };
-                },
-              },
-              {
-                path: 'market',
-                lazy: async () => {
-                  const { MarketPage } = await import('@/features/market');
-                  return { Component: MarketPage };
-                },
-              },
+              ...scanRoutes,
+              ...priceRoutes,
               {
                 path: 'profile',
                 lazy: async () => {

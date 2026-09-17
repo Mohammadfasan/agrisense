@@ -30,12 +30,17 @@ const config: Config = {
       spacing: {
         // WCAG 2.5.5 minimum touch target.
         touch: '44px',
+        // The floor for anything a farmer taps standing in a field: 44px is
+        // what the guideline allows, and this audience is using the phone
+        // one-handed, in sunlight, often with wet or gloved hands. Everything
+        // on the home screen and in the navigation is sized from this.
+        'touch-md': '48px',
         // For the few one-tap choices that carry a whole screen -- picking a
         // language, say. Sized for a thumb on a phone held in the field.
         'touch-lg': '64px',
       },
-      minWidth: { touch: '44px' },
-      minHeight: { touch: '44px', 'touch-lg': '64px' },
+      minWidth: { touch: '44px', 'touch-md': '48px' },
+      minHeight: { touch: '44px', 'touch-md': '48px', 'touch-lg': '64px' },
     },
   },
   plugins: [],

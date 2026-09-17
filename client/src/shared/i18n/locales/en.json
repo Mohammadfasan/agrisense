@@ -1,7 +1,8 @@
 {
   "common": {
     "loading": "Loading",
-    "retry": "Try again"
+    "retry": "Try again",
+    "comingSoon": "Coming soon"
   },
   "currency": {
     "symbol": "Rs.",
@@ -19,6 +20,30 @@
     "scan": "Scan",
     "market": "Market",
     "profile": "Profile"
+  },
+  "status": {
+    "offline": "Offline"
+  },
+  "home": {
+    "greeting": "Hello, {{name}}",
+    "notifications": "Notifications",
+    "scan": {
+      "title": "Scan a leaf",
+      "description": "Photograph a leaf to find disease early."
+    },
+    "plots": {
+      "title": "My plots",
+      "count_one": "{{count}} plot",
+      "count_other": "{{count}} plots",
+      "summary": "{{plots}} · {{acres}}",
+      "none": "No plots yet. Tap to add your first."
+    },
+    "prices": {
+      "title": "Market prices"
+    },
+    "profile": {
+      "title": "My profile"
+    }
   },
   "auth": {
     "panel": {

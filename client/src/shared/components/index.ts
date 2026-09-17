@@ -1,5 +1,5 @@
-// UI primitives. `OfflineBanner` is deliberately not re-exported: it pulls in
-// Dexie, which a screen that only wants a Button should not have to load.
+// UI primitives, and nothing that reaches for data. The connectivity chip
+// lives in `app/ConnectivityStatus.tsx` with the rest of the shell chrome.
 export { Button, type ButtonProps, type ButtonVariant } from './Button';
 export { Card, type CardPadding, type CardProps } from './Card';
 export { ChoiceGroup, type ChoiceGroupProps, type ChoiceOption } from './ChoiceGroup';
