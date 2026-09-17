@@ -135,7 +135,11 @@ export function TaskSheet({
         <ChoiceGroup<ActivityType>
           legend={fields.type.label}
           options={activityOptions}
-          columns={3}
+          // Two columns and not three: "பூச்சி கட்டுப்பாடு" and
+          // "පළිබෝධ පාලනය" do not fit a 110px cell on a 360px screen, and a
+          // wrapped two-line label in a three-up grid is what makes a picker
+          // look broken in one language and fine in another.
+          columns={2}
           value={type.field.value}
           onChange={type.field.onChange}
           {...(errors.type ? { error: fields.type.invalid } : {})}
