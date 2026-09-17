@@ -1,0 +1,332 @@
+{
+  "version": 1,
+  "reviewStatus": "UNREVIEWED. Indicative dry-zone (Anuradhapura/Polonnaruwa) timings compiled from general DOA guidance. Every dayOffset and totalDays here needs an agronomist to confirm or correct it before release; the file is separate from the code so that can happen without a developer.",
+  "units": "dayOffset is whole days from the plot's plantedAt. 0 is planting day itself.",
+  "crops": {
+    "PADDY": {
+      "totalDays": 120,
+      "activities": [
+        {
+          "dayOffset": 0,
+          "type": "sowing",
+          "titleKey": "calendar.task.paddy.sowing.title",
+          "descriptionKey": "calendar.task.paddy.sowing.description"
+        },
+        {
+          "dayOffset": 3,
+          "type": "irrigation",
+          "titleKey": "calendar.task.paddy.establishWater.title",
+          "descriptionKey": "calendar.task.paddy.establishWater.description"
+        },
+        {
+          "dayOffset": 14,
+          "type": "fertilising",
+          "titleKey": "calendar.task.paddy.topDressing1.title",
+          "descriptionKey": "calendar.task.paddy.topDressing1.description"
+        },
+        {
+          "dayOffset": 21,
+          "type": "weeding",
+          "titleKey": "calendar.task.paddy.weeding1.title",
+          "descriptionKey": "calendar.task.paddy.weeding1.description"
+        },
+        {
+          "dayOffset": 30,
+          "type": "pest_control",
+          "titleKey": "calendar.task.paddy.pestScout1.title",
+          "descriptionKey": "calendar.task.paddy.pestScout1.description"
+        },
+        {
+          "dayOffset": 40,
+          "type": "fertilising",
+          "titleKey": "calendar.task.paddy.topDressing2.title",
+          "descriptionKey": "calendar.task.paddy.topDressing2.description"
+        },
+        {
+          "dayOffset": 50,
+          "type": "irrigation",
+          "titleKey": "calendar.task.paddy.midSeasonWater.title",
+          "descriptionKey": "calendar.task.paddy.midSeasonWater.description"
+        },
+        {
+          "dayOffset": 60,
+          "type": "pest_control",
+          "titleKey": "calendar.task.paddy.pestScout2.title",
+          "descriptionKey": "calendar.task.paddy.pestScout2.description"
+        },
+        {
+          "dayOffset": 65,
+          "type": "fertilising",
+          "titleKey": "calendar.task.paddy.panicleDressing.title",
+          "descriptionKey": "calendar.task.paddy.panicleDressing.description"
+        },
+        {
+          "dayOffset": 105,
+          "type": "irrigation",
+          "titleKey": "calendar.task.paddy.drainField.title",
+          "descriptionKey": "calendar.task.paddy.drainField.description"
+        },
+        {
+          "dayOffset": 115,
+          "type": "harvest",
+          "titleKey": "calendar.task.paddy.harvest.title",
+          "descriptionKey": "calendar.task.paddy.harvest.description"
+        }
+      ]
+    },
+    "TOMATO": {
+      "totalDays": 100,
+      "activities": [
+        {
+          "dayOffset": 0,
+          "type": "sowing",
+          "titleKey": "calendar.task.tomato.transplant.title",
+          "descriptionKey": "calendar.task.tomato.transplant.description"
+        },
+        {
+          "dayOffset": 7,
+          "type": "irrigation",
+          "titleKey": "calendar.task.tomato.establishWater.title",
+          "descriptionKey": "calendar.task.tomato.establishWater.description"
+        },
+        {
+          "dayOffset": 14,
+          "type": "fertilising",
+          "titleKey": "calendar.task.tomato.topDressing1.title",
+          "descriptionKey": "calendar.task.tomato.topDressing1.description"
+        },
+        {
+          "dayOffset": 21,
+          "type": "weeding",
+          "titleKey": "calendar.task.tomato.weeding1.title",
+          "descriptionKey": "calendar.task.tomato.weeding1.description"
+        },
+        {
+          "dayOffset": 28,
+          "type": "pest_control",
+          "titleKey": "calendar.task.tomato.whitefly.title",
+          "descriptionKey": "calendar.task.tomato.whitefly.description"
+        },
+        {
+          "dayOffset": 35,
+          "type": "fertilising",
+          "titleKey": "calendar.task.tomato.topDressing2.title",
+          "descriptionKey": "calendar.task.tomato.topDressing2.description"
+        },
+        {
+          "dayOffset": 45,
+          "type": "pest_control",
+          "titleKey": "calendar.task.tomato.fruitBorer.title",
+          "descriptionKey": "calendar.task.tomato.fruitBorer.description"
+        },
+        {
+          "dayOffset": 55,
+          "type": "fertilising",
+          "titleKey": "calendar.task.tomato.topDressing3.title",
+          "descriptionKey": "calendar.task.tomato.topDressing3.description"
+        },
+        {
+          "dayOffset": 65,
+          "type": "harvest",
+          "titleKey": "calendar.task.tomato.firstPicking.title",
+          "descriptionKey": "calendar.task.tomato.firstPicking.description"
+        },
+        {
+          "dayOffset": 90,
+          "type": "harvest",
+          "titleKey": "calendar.task.tomato.finalPicking.title",
+          "descriptionKey": "calendar.task.tomato.finalPicking.description"
+        }
+      ]
+    },
+    "CHILLI": {
+      "totalDays": 130,
+      "activities": [
+        {
+          "dayOffset": 0,
+          "type": "sowing",
+          "titleKey": "calendar.task.chilli.transplant.title",
+          "descriptionKey": "calendar.task.chilli.transplant.description"
+        },
+        {
+          "dayOffset": 7,
+          "type": "irrigation",
+          "titleKey": "calendar.task.chilli.establishWater.title",
+          "descriptionKey": "calendar.task.chilli.establishWater.description"
+        },
+        {
+          "dayOffset": 15,
+          "type": "fertilising",
+          "titleKey": "calendar.task.chilli.topDressing1.title",
+          "descriptionKey": "calendar.task.chilli.topDressing1.description"
+        },
+        {
+          "dayOffset": 25,
+          "type": "weeding",
+          "titleKey": "calendar.task.chilli.weeding1.title",
+          "descriptionKey": "calendar.task.chilli.weeding1.description"
+        },
+        {
+          "dayOffset": 35,
+          "type": "pest_control",
+          "titleKey": "calendar.task.chilli.thrips.title",
+          "descriptionKey": "calendar.task.chilli.thrips.description"
+        },
+        {
+          "dayOffset": 45,
+          "type": "fertilising",
+          "titleKey": "calendar.task.chilli.topDressing2.title",
+          "descriptionKey": "calendar.task.chilli.topDressing2.description"
+        },
+        {
+          "dayOffset": 60,
+          "type": "pest_control",
+          "titleKey": "calendar.task.chilli.anthracnose.title",
+          "descriptionKey": "calendar.task.chilli.anthracnose.description"
+        },
+        {
+          "dayOffset": 75,
+          "type": "fertilising",
+          "titleKey": "calendar.task.chilli.topDressing3.title",
+          "descriptionKey": "calendar.task.chilli.topDressing3.description"
+        },
+        {
+          "dayOffset": 90,
+          "type": "harvest",
+          "titleKey": "calendar.task.chilli.firstPicking.title",
+          "descriptionKey": "calendar.task.chilli.firstPicking.description"
+        },
+        {
+          "dayOffset": 120,
+          "type": "harvest",
+          "titleKey": "calendar.task.chilli.finalPicking.title",
+          "descriptionKey": "calendar.task.chilli.finalPicking.description"
+        }
+      ]
+    },
+    "ONION": {
+      "totalDays": 95,
+      "activities": [
+        {
+          "dayOffset": 0,
+          "type": "sowing",
+          "titleKey": "calendar.task.onion.planting.title",
+          "descriptionKey": "calendar.task.onion.planting.description"
+        },
+        {
+          "dayOffset": 5,
+          "type": "irrigation",
+          "titleKey": "calendar.task.onion.establishWater.title",
+          "descriptionKey": "calendar.task.onion.establishWater.description"
+        },
+        {
+          "dayOffset": 15,
+          "type": "fertilising",
+          "titleKey": "calendar.task.onion.topDressing1.title",
+          "descriptionKey": "calendar.task.onion.topDressing1.description"
+        },
+        {
+          "dayOffset": 25,
+          "type": "weeding",
+          "titleKey": "calendar.task.onion.weeding1.title",
+          "descriptionKey": "calendar.task.onion.weeding1.description"
+        },
+        {
+          "dayOffset": 35,
+          "type": "pest_control",
+          "titleKey": "calendar.task.onion.thrips.title",
+          "descriptionKey": "calendar.task.onion.thrips.description"
+        },
+        {
+          "dayOffset": 45,
+          "type": "fertilising",
+          "titleKey": "calendar.task.onion.topDressing2.title",
+          "descriptionKey": "calendar.task.onion.topDressing2.description"
+        },
+        {
+          "dayOffset": 55,
+          "type": "irrigation",
+          "titleKey": "calendar.task.onion.bulbingWater.title",
+          "descriptionKey": "calendar.task.onion.bulbingWater.description"
+        },
+        {
+          "dayOffset": 70,
+          "type": "pest_control",
+          "titleKey": "calendar.task.onion.purpleBlotch.title",
+          "descriptionKey": "calendar.task.onion.purpleBlotch.description"
+        },
+        {
+          "dayOffset": 90,
+          "type": "harvest",
+          "titleKey": "calendar.task.onion.harvest.title",
+          "descriptionKey": "calendar.task.onion.harvest.description"
+        }
+      ]
+    },
+    "BRINJAL": {
+      "totalDays": 130,
+      "activities": [
+        {
+          "dayOffset": 0,
+          "type": "sowing",
+          "titleKey": "calendar.task.brinjal.transplant.title",
+          "descriptionKey": "calendar.task.brinjal.transplant.description"
+        },
+        {
+          "dayOffset": 7,
+          "type": "irrigation",
+          "titleKey": "calendar.task.brinjal.establishWater.title",
+          "descriptionKey": "calendar.task.brinjal.establishWater.description"
+        },
+        {
+          "dayOffset": 15,
+          "type": "fertilising",
+          "titleKey": "calendar.task.brinjal.topDressing1.title",
+          "descriptionKey": "calendar.task.brinjal.topDressing1.description"
+        },
+        {
+          "dayOffset": 25,
+          "type": "weeding",
+          "titleKey": "calendar.task.brinjal.weeding1.title",
+          "descriptionKey": "calendar.task.brinjal.weeding1.description"
+        },
+        {
+          "dayOffset": 35,
+          "type": "pest_control",
+          "titleKey": "calendar.task.brinjal.shootBorer.title",
+          "descriptionKey": "calendar.task.brinjal.shootBorer.description"
+        },
+        {
+          "dayOffset": 45,
+          "type": "fertilising",
+          "titleKey": "calendar.task.brinjal.topDressing2.title",
+          "descriptionKey": "calendar.task.brinjal.topDressing2.description"
+        },
+        {
+          "dayOffset": 60,
+          "type": "pest_control",
+          "titleKey": "calendar.task.brinjal.fruitBorer.title",
+          "descriptionKey": "calendar.task.brinjal.fruitBorer.description"
+        },
+        {
+          "dayOffset": 75,
+          "type": "fertilising",
+          "titleKey": "calendar.task.brinjal.topDressing3.title",
+          "descriptionKey": "calendar.task.brinjal.topDressing3.description"
+        },
+        {
+          "dayOffset": 85,
+          "type": "harvest",
+          "titleKey": "calendar.task.brinjal.firstPicking.title",
+          "descriptionKey": "calendar.task.brinjal.firstPicking.description"
+        },
+        {
+          "dayOffset": 120,
+          "type": "harvest",
+          "titleKey": "calendar.task.brinjal.finalPicking.title",
+          "descriptionKey": "calendar.task.brinjal.finalPicking.description"
+        }
+      ]
+    }
+  }
+}
