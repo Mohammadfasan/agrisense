@@ -10,6 +10,7 @@ export {
   type GroupedTasks,
   type TaskBucket,
 } from './grouping';
+export { useNextTask } from './useNextTask';
 export { useTaskFields, type TaskFieldName, type TaskFieldset, type TaskFieldText } from './fields';
 export {
   taskFormSchema,

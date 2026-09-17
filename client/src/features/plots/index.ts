@@ -10,3 +10,4 @@ export {
   type PlotFormOutput,
   type PlotFormValues,
 } from './plot';
+export { cropStage, type CropStage } from './progress';

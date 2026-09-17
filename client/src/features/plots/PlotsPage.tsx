@@ -1,14 +1,18 @@
 import type { CropCode, PlotRecord } from '@agrisense/shared';
-import { ChevronRight, MapPin, Plus } from 'lucide-react';
+import { CalendarDays, ChevronRight, MapPin, Plus } from 'lucide-react';
 import { useEffect, type ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
+import { ACTIVITY_META, taskTitle, useCalendarStore, useNextTask } from '@/features/calendar';
 import { Button, EmptyState, Spinner } from '@/shared/components';
+import { formatDayRelative, todayIso } from '@/shared/i18n/dates';
+import { cx } from '@/shared/utils/cx';
 
 import { listErrorMessage } from './errors';
 import { usePlotFields } from './fields';
 import { usePlotStore } from './plotStore';
+import { cropStage } from './progress';
 
 /**
  * The farmer's plots, as a list of cards.
@@ -35,9 +39,18 @@ export function PlotsPage(): ReactElement {
   const fetchPlots = usePlotStore((state) => state.fetchPlots);
   const fetchMore = usePlotStore((state) => state.fetchMore);
 
+  // One request for every card's "next due" line, rather than one per plot.
+  // See `useNextTask`.
+  const ensureUpcoming = useCalendarStore((state) => state.ensureUpcoming);
+
   useEffect(() => {
     void ensureLoaded();
-  }, [ensureLoaded]);
+    void ensureUpcoming();
+  }, [ensureLoaded, ensureUpcoming]);
+
+  // One "today" for the whole list, so two cards cannot be drawn against
+  // different days when the screen is open across midnight.
+  const today = todayIso();
 
   // Only while there is nothing to show. A refresh over a list already on
   // screen leaves it there rather than replacing it with a spinner.
@@ -91,7 +104,7 @@ export function PlotsPage(): ReactElement {
           <ul className="flex flex-col gap-3">
             {plots.map((plot) => (
               <li key={plot._id}>
-                <PlotCard plot={plot} cropName={cropName} />
+                <PlotCard plot={plot} cropName={cropName} today={today} />
               </li>
             ))}
           </ul>
@@ -133,35 +146,145 @@ export function PlotsPage(): ReactElement {
 function PlotCard({
   plot,
   cropName,
+  today,
 }: {
   plot: PlotRecord;
   cropName: (crop: CropCode) => string;
+  today: string;
 }): ReactElement {
   const { t, i18n } = useTranslation();
+  const stage = cropStage(plot, today);
+
+  return (
+    // A card of two stacked targets rather than one: the body opens the plot,
+    // the strip at the bottom opens its calendar. Both clear 48px, and neither
+    // is nested inside the other -- an anchor inside an anchor is not markup a
+    // browser or a screen reader can make sense of.
+    <div className="flex flex-col overflow-hidden rounded-xl border border-muted-200 bg-white shadow-sm">
+      <Link
+        to={`/plots/${plot._id}/edit`}
+        className="flex items-center gap-3 p-4 transition-colors hover:bg-muted-50 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+      >
+        <span className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="truncate text-base font-semibold text-gray-900">{plot.name}</span>
+          {/* Crop and size on one line: together they are how a farmer tells two
+              plots apart at a glance, and apart they are two lines of chrome. */}
+          <span className="text-sm text-muted-700">
+            {cropName(plot.crop)} ·{' '}
+            {t('plot.value.acres', { defaultValue: '{{count}} acres', count: plot.areaAcres })}
+          </span>
+          <span className="text-sm text-muted-700">
+            {plot.plantedAt == null
+              ? t('plot.notPlanted', 'Not planted yet')
+              : t('plot.planted', {
+                  defaultValue: 'Planted {{date}}',
+                  date: formatDate(plot.plantedAt, i18n.language),
+                })}
+          </span>
+          {stage !== null && <CropStageBar stage={stage} />}
+        </span>
+        <ChevronRight className="h-5 w-5 shrink-0 text-muted" aria-hidden />
+      </Link>
+
+      <NextTaskStrip plotId={plot._id} today={today} />
+    </div>
+  );
+}
+
+/**
+ * How far through the season this plot is.
+ *
+ * Computed on every render from `plantedAt` and today, never stored: a saved
+ * percentage is wrong by the next morning. `progress.ts` does the arithmetic.
+ *
+ * The number is spelled out beside the bar -- "Day 34 of 120" -- because a bar
+ * on its own is a shape, and a farmer deciding whether to order fertiliser
+ * wants the day.
+ */
+function CropStageBar({ stage }: { stage: ReturnType<typeof cropStage> }): ReactElement | null {
+  const { t } = useTranslation();
+
+  if (stage === null || stage.isFuture) {
+    return null;
+  }
+
+  return (
+    <span className="mt-1 flex flex-col gap-1">
+      <span
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={stage.total}
+        aria-valuenow={stage.day}
+        aria-label={t('calendar.stage', {
+          defaultValue: 'Day {{day}} of {{total}}',
+          day: stage.day,
+          total: stage.total,
+        })}
+        className="block h-2 w-full overflow-hidden rounded-full bg-muted-200"
+      >
+        <span
+          className={cx(
+            'block h-full rounded-full',
+            stage.isComplete ? 'bg-warning' : 'bg-primary',
+          )}
+          style={{ width: `${String(Math.round(stage.fraction * 100))}%` }}
+        />
+      </span>
+      <span className="text-sm text-muted-700">
+        {stage.isComplete
+          ? t('calendar.stageDone', 'Ready to harvest')
+          : t('calendar.stage', {
+              defaultValue: 'Day {{day}} of {{total}}',
+              day: stage.day,
+              total: stage.total,
+            })}
+      </span>
+    </span>
+  );
+}
+
+/**
+ * The way into this plot's calendar, carrying the next thing due.
+ *
+ * Overdue work is drawn in the danger colour and named as overdue rather than
+ * only dated: "3 Jun" tells a farmer nothing unless they are already counting,
+ * and this line is the one place a missed spray can surface on the list screen.
+ *
+ * With nothing due it is still here, as a plain link. A card that sometimes
+ * has a way into the calendar and sometimes does not is a card the farmer has
+ * to re-learn every time the season turns over.
+ */
+function NextTaskStrip({ plotId, today }: { plotId: string; today: string }): ReactElement {
+  const { t } = useTranslation();
+  const task = useNextTask(plotId);
+  const isOverdue = task !== null && task.dueDate < today;
+  const Icon = task === null ? CalendarDays : ACTIVITY_META[task.type].icon;
 
   return (
     <Link
-      to={`/plots/${plot._id}/edit`}
-      className="flex items-center gap-3 rounded-xl border border-muted-200 bg-white p-4 shadow-sm transition-colors hover:bg-muted-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      to={`/plots/${plotId}/calendar`}
+      className={cx(
+        'flex min-h-touch-md items-center gap-2 border-t px-4 py-2 text-sm transition-colors',
+        'focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary',
+        isOverdue
+          ? 'border-danger-200 bg-danger-50 text-danger-700 hover:bg-danger-100'
+          : 'border-muted-200 text-muted-700 hover:bg-muted-50',
+      )}
     >
-      <span className="flex min-w-0 flex-1 flex-col gap-1">
-        <span className="truncate text-base font-semibold text-gray-900">{plot.name}</span>
-        {/* Crop and size on one line: together they are how a farmer tells two
-            plots apart at a glance, and apart they are two lines of chrome. */}
-        <span className="text-sm text-muted-700">
-          {cropName(plot.crop)} ·{' '}
-          {t('plot.value.acres', { defaultValue: '{{count}} acres', count: plot.areaAcres })}
-        </span>
-        <span className="text-sm text-muted-700">
-          {plot.plantedAt === undefined
-            ? t('plot.notPlanted', 'Not planted yet')
-            : t('plot.planted', {
-                defaultValue: 'Planted {{date}}',
-                date: formatDate(plot.plantedAt, i18n.language),
-              })}
-        </span>
+      <Icon className="h-5 w-5 shrink-0" aria-hidden />
+      <span className="min-w-0 flex-1 truncate font-medium">
+        {task === null
+          ? t('calendar.open', 'Calendar')
+          : t('calendar.nextDue', { defaultValue: 'Next: {{title}}', title: taskTitle(task, t) })}
       </span>
-      <ChevronRight className="h-5 w-5 shrink-0 text-muted" aria-hidden />
+      {task !== null && (
+        <span className="shrink-0">
+          {isOverdue && (
+            <span className="mr-1 font-semibold">{t('calendar.bucket.overdue', 'Overdue')}</span>
+          )}
+          {formatDayRelative(task.dueDate, today)}
+        </span>
+      )}
     </Link>
   );
 }
