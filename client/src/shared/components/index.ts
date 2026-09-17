@@ -1,6 +1,7 @@
 // UI primitives, and nothing that reaches for data. The connectivity chip
 // lives in `app/ConnectivityStatus.tsx` with the rest of the shell chrome.
 export { Button, type ButtonProps, type ButtonVariant } from './Button';
+export { BottomSheet, type BottomSheetProps } from './BottomSheet';
 export { Card, type CardPadding, type CardProps } from './Card';
 export { ChoiceGroup, type ChoiceGroupProps, type ChoiceOption } from './ChoiceGroup';
 export { ConfirmDialog, type ConfirmDialogProps } from './ConfirmDialog';

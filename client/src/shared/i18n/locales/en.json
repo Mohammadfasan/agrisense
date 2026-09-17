@@ -2,7 +2,8 @@
   "common": {
     "loading": "Loading",
     "retry": "Try again",
-    "comingSoon": "Coming soon"
+    "comingSoon": "Coming soon",
+    "close": "Close"
   },
   "currency": {
     "symbol": "Rs.",
@@ -244,6 +245,80 @@
       "save": "Could not save this plot. Check your connection.",
       "delete": "Could not delete this plot. Check your connection.",
       "gone": "This plot is no longer there. It may have been deleted.",
+      "validation": "Check the details and try again."
+    }
+  },
+  "calendar": {
+    "title": "Crop calendar",
+    "open": "Calendar",
+    "save": "Save task",
+    "cancel": "Cancel",
+    "delete": "Delete task",
+    "complete": "Mark \"{{title}}\" as done",
+    "reopen": "Mark \"{{title}}\" as not done",
+    "doneOn": "Done {{date}}",
+    "nextDue": "Next: {{title}}",
+    "stage": "Day {{day}} of {{total}}",
+    "stageDone": "Ready to harvest",
+    "add": {
+      "title": "Add a task",
+      "action": "Add a task"
+    },
+    "edit": {
+      "title": "Edit task"
+    },
+    "bucket": {
+      "overdue": "Overdue",
+      "today": "Today",
+      "week": "This week",
+      "later": "Later",
+      "done_one": "Done ({{count}})",
+      "done_other": "Done ({{count}})"
+    },
+    "empty": {
+      "title": "Nothing planned yet",
+      "description": "Tasks appear here once this plot has a planting date. You can add your own at any time."
+    },
+    "upcoming": {
+      "title": "To do next",
+      "all": "See all tasks"
+    },
+    "confirmDelete": {
+      "title": "Delete this task?",
+      "description": "\"{{title}}\" will be removed from this plot's calendar.",
+      "confirm": "Delete",
+      "cancel": "Keep task"
+    },
+    "activity": {
+      "sowing": "Sowing",
+      "fertilising": "Fertilising",
+      "irrigation": "Watering",
+      "pest_control": "Pest control",
+      "weeding": "Weeding",
+      "harvest": "Harvest"
+    },
+    "field": {
+      "type": "What kind of work?",
+      "title": "What needs doing?",
+      "dueDate": "Which day?",
+      "notes": "Notes"
+    },
+    "hint": {
+      "title": "A few words you will recognise, like \"Spray for thrips\".",
+      "notes": "Anything worth remembering — a quantity, a product name."
+    },
+    "invalid": {
+      "type": "Choose the kind of work.",
+      "title": "Enter what needs doing, up to 100 letters.",
+      "dueDate": "Choose the day this is due.",
+      "notes": "Notes can be up to 500 letters."
+    },
+    "error": {
+      "load": "Your tasks could not be loaded. Check your connection.",
+      "save": "Could not save this task. Check your connection.",
+      "delete": "Could not delete this task. Check your connection.",
+      "complete": "Could not update this task. Check your connection.",
+      "gone": "This task is no longer there. It may have been deleted.",
       "validation": "Check the details and try again."
     }
   }

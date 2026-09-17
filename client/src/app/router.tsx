@@ -30,7 +30,7 @@ const OFFICER_PORTAL_ROLES: readonly UserRole[] = ['officer', 'admin'];
  *   ├── RequireProfile
  *   │   └── /  (AppShell)       bottom nav → sidebar at lg
  *   │       ├── /               home
- *   │       ├── /plots, /plots/new, /plots/:id/edit
+ *   │       ├── /plots, /plots/new, /plots/:id/edit, /plots/:id/calendar
  *   │       ├── /scan           only once FEATURES.scan is on (Week 5)
  *   │       ├── /market         only once FEATURES.prices is on (Week 7)
  *   │       └── /profile
@@ -152,6 +152,16 @@ export const router = createBrowserRouter([
                 lazy: async () => {
                   const { PlotFormPage } = await import('@/features/plots');
                   return { Component: PlotFormPage };
+                },
+              },
+              {
+                // The plot's crop calendar. Its own chunk: it pulls the task
+                // sheet and react-hook-form with it, and the list screen does
+                // not need either.
+                path: 'plots/:id/calendar',
+                lazy: async () => {
+                  const { CalendarPage } = await import('@/features/calendar');
+                  return { Component: CalendarPage };
                 },
               },
               ...scanRoutes,
