@@ -19,7 +19,13 @@ export {
   type Locale,
   type LocaleCode,
 } from './types.js';
-export { CROP_CODES, cropCodeSchema, isCropCode, type CropCode } from './domain/crops.js';
+export {
+  CROP_CODES,
+  CROP_GROWING_DAYS,
+  cropCodeSchema,
+  isCropCode,
+  type CropCode,
+} from './domain/crops.js';
 export {
   ISO_DATE_PATTERN,
   SRI_LANKA_UTC_OFFSET_MINUTES,

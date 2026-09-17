@@ -46,6 +46,7 @@ export {
   todayInSriLanka,
   uuidV4Schema,
   CROP_CODES,
+  CROP_GROWING_DAYS,
   DEFAULT_LOCALE,
   DISTRICTS,
   LOCALES,

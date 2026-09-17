@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { CROP_CODES, activityTypeSchema, type CropCode } from '@shared';
+import { CROP_CODES, CROP_GROWING_DAYS, activityTypeSchema, type CropCode } from '@shared';
 
 import templateFile from '../../data/crop-calendar-templates.json';
 
@@ -87,6 +87,21 @@ const calendar = ((): { version: number; crops: Record<CropCode, CropCalendarTem
       .join('; ');
     throw new Error(`crop-calendar-templates.json is invalid — ${where}`);
   }
+  // The client draws its crop-stage bar from `CROP_GROWING_DAYS` in
+  // `@agrisense/shared`, which cannot read this file. Checked here rather than
+  // kept in step by hand: a season length corrected by an agronomist in the
+  // JSON and not in the package would put every plot's progress bar at the
+  // wrong fraction, silently, and only on the client.
+  for (const code of CROP_CODES) {
+    const { totalDays } = parsed.data.crops[code] ?? { totalDays: 0 };
+    if (totalDays !== CROP_GROWING_DAYS[code]) {
+      throw new Error(
+        `crop-calendar-templates.json disagrees with CROP_GROWING_DAYS for ${code}: ` +
+          `${String(totalDays)} vs ${String(CROP_GROWING_DAYS[code])}`,
+      );
+    }
+  }
+
   return {
     version: parsed.data.version,
     // The refinement above has established that every code is present, which
