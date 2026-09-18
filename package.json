@@ -15,6 +15,7 @@
     "dev": "npm run dev --workspace server",
     "build": "npm run build --workspaces --if-present",
     "start": "npm run start --workspace server",
+    "seed:templates": "npm run seed:templates --workspace server",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "lint": "eslint .",
