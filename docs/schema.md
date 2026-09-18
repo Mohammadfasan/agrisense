@@ -151,19 +151,20 @@ reuses a rotated token, so reuse implies theft.
 
 **Implemented — Day 10.** `server/src/models/plot.model.ts`.
 
-| Field       | Type            | Required | Notes                                           |
-| ----------- | --------------- | -------- | ----------------------------------------------- |
-| `_id`       | String          | ✓        | **Client-generated UUID v4**, lower case        |
-| `userId`    | ObjectId        | ✓        | ref `farmers`                                   |
-| `name`      | String          | ✓        | 1–60 chars. "Upper field"                       |
-| `crop`      | Enum            | ✓        | `crops.code` — see `CROP_CODES`                 |
-| `areaAcres` | Number          | ✓        | 0.01–1000                                       |
-| `boundary`  | GeoJSON Polygon |          | Drawn on map; rings validated closed            |
-| `centroid`  | GeoJSON Point   | ✓        | `[lng, lat]`. Derived from `boundary` if unsent |
-| `plantedAt` | Date            |          | Null when nothing is in the ground              |
-| `notes`     | String          |          | Max 500 chars                                   |
-| `version`   | Number          | ✓        | Default 1; `$inc` on every write                |
-| `deletedAt` | Date            |          | Null when live. Soft delete                     |
+| Field        | Type            | Required | Notes                                              |
+| ------------ | --------------- | -------- | -------------------------------------------------- |
+| `_id`        | String          | ✓        | **Client-generated UUID v4**, lower case           |
+| `userId`     | ObjectId        | ✓        | ref `farmers`                                      |
+| `name`       | String          | ✓        | 1–60 chars. "Upper field"                          |
+| `crop`       | Enum            | ✓        | `crops.code` — see `CROP_CODES`                    |
+| `areaAcres`  | Number          | ✓        | 0.01–1000                                          |
+| `boundary`   | GeoJSON Polygon |          | Drawn on map; rings validated closed               |
+| `centroid`   | GeoJSON Point   | ✓        | `[lng, lat]`. Derived from `boundary` if unsent    |
+| `plantedAt`  | Date            |          | Null when nothing is in the ground                 |
+| `sowingDate` | String          |          | **`YYYY-MM-DD`**. Day 12; written with `plantedAt` |
+| `notes`      | String          |          | Max 500 chars                                      |
+| `version`    | Number          | ✓        | Default 1; `$inc` on every write                   |
+| `deletedAt`  | Date            |          | Null when live. Soft delete                        |
 
 **Indexes**
 
@@ -199,6 +200,15 @@ client can show the same point before the plot has ever reached the server.
 what a farmer here states their own land as. The earlier draft of this table
 said `areaHectares`; having the two collections disagree on units is exactly the
 bug that unit fields cause, so both are acres.
+
+**`sowingDate` and `plantedAt` are the same fact, stored twice — for now.**
+`plantedAt` is Day 10's field and is what `syncTemplateTasks` reads.
+`sowingDate` is Day 12's, and is the same day stored the way §19 says a farming
+day must be stored: as `YYYY-MM-DD`, because a `Date` at Colombo midnight
+serialises to 18:30 the day before and puts a whole season one day early.
+`POST /plots/:plotId/calendar/generate` writes both in one update, so they
+cannot disagree. New code reads `sowingDate`; `plantedAt` goes when the Day 11
+generator does.
 
 **Deferred.** `district`, `dsDivision`, `soilType`, `irrigationType`,
 `currentPlantingId` and `boundaryFlagged` are not implemented yet. The first two
@@ -740,26 +750,31 @@ validatable on the client, offline, where no ObjectId means anything.
 One thing to do, on one plot, on one day. Generated from the crop calendar when
 a plot is planted, or written by the farmer.
 
-| Field         | Type     | Required | Notes                                                                                 |
-| ------------- | -------- | -------- | ------------------------------------------------------------------------------------- |
-| `_id`         | String   | ✓        | **UUID v4**, lower case — client's, or the generator's                                |
-| `userId`      | ObjectId | ✓        | ref `farmers`                                                                         |
-| `plotId`      | String   | ✓        | ref `plots` — a UUID, because `plots._id` is one                                      |
-| `type`        | Enum     | ✓        | `sowing` \| `fertilising` \| `irrigation` \| `pest_control` \| `weeding` \| `harvest` |
-| `title`       | String   | ✓        | 1–100. Free text, or an **i18n key** — see below                                      |
-| `notes`       | String   |          | Max 500. Free text, or the description's i18n key                                     |
-| `dueDate`     | String   | ✓        | **`YYYY-MM-DD`**, not a Date — see below                                              |
-| `completedOn` | String   |          | `YYYY-MM-DD`, null while outstanding                                                  |
-| `source`      | Enum     | ✓        | `template` \| `manual`. Server-owned                                                  |
-| `reminderAt`  | String   |          | ISO 8601 instant. **Reserved for Week 9**; nothing reads it                           |
-| `version`     | Number   | ✓        | Default 1; `$inc` on every write                                                      |
-| `deletedAt`   | Date     |          | Null when live. Soft delete                                                           |
+| Field               | Type     | Required | Notes                                                                                 |
+| ------------------- | -------- | -------- | ------------------------------------------------------------------------------------- |
+| `_id`               | String   | ✓        | **UUID v4**, lower case — client's, or the generator's                                |
+| `userId`            | ObjectId | ✓        | ref `farmers`                                                                         |
+| `plotId`            | String   | ✓        | ref `plots` — a UUID, because `plots._id` is one                                      |
+| `type`              | Enum     | ✓        | `sowing` \| `fertilising` \| `irrigation` \| `pest_control` \| `weeding` \| `harvest` |
+| `title`             | String   | ✓        | 1–100. Free text, or an **i18n key** — see below                                      |
+| `notes`             | String   |          | Max 500. Free text, or the description's i18n key                                     |
+| `dueDate`           | String   | ✓        | **`YYYY-MM-DD`**, not a Date — see below                                              |
+| `completedOn`       | String   |          | `YYYY-MM-DD`, null while outstanding                                                  |
+| `status`            | Enum     | ✓        | **Day 12.** `pending` \| `done` \| `skipped`                                          |
+| `completedAt`       | Date     |          | **Day 12.** The instant the task left `pending`                                       |
+| `isUserEdited`      | Boolean  | ✓        | **Day 12.** `true` once a farmer has touched it                                       |
+| `generationBatchId` | String   |          | **Day 12.** UUID v4 of the run that made it; null on manual                           |
+| `source`            | Enum     | ✓        | `template` \| `manual`. Server-owned                                                  |
+| `reminderAt`        | String   |          | ISO 8601 instant. **Reserved for Week 9**; nothing reads it                           |
+| `version`           | Number   | ✓        | Default 1; `$inc` on every write                                                      |
+| `deletedAt`         | Date     |          | Null when live. Soft delete                                                           |
 
 **Indexes**
 
 ```js
 { userId: 1, plotId: 1, deletedAt: 1, dueDate: 1 }   // one plot's calendar
-{ userId: 1, deletedAt: 1, dueDate: 1 }              // /calendar/upcoming
+{ userId: 1, deletedAt: 1, dueDate: 1 }              // /calendar/upcoming, /calendar/today
+{ plotId: 1, generationBatchId: 1 }                  // sparse — the generator
 ```
 
 **Why days are strings.** A farming task happens on a day; "top-dress on 12
@@ -775,6 +790,61 @@ which is worse than moving all of them because it looks correct in testing.
 `/calendar/upcoming`, which names no plot: `plotId` sits in the middle of it, so
 an unconstrained query gets `userId` as its only usable prefix and leaves the
 date range and the sort to be done in memory over every task the farmer owns.
+
+**`/calendar/today` has no index of its own, and that is a measurement rather
+than an omission.** `explain()` on the pipeline in
+`server/src/modules/calendar/calendarToday.service.ts` picks `owner_live_due`:
+
+```
+SORT < FETCH < IXSCAN(owner_live_due)
+  indexBounds: userId [eq], deletedAt [null], dueDate ["", <today + 7>]
+```
+
+A `{ userId, deletedAt, status, dueDate }` index was written, measured and
+removed again. The pipeline's `$match` carries an `$or` — the `today` bucket
+wants every status, while `overdue` and `next7` want only `pending` — so one
+branch leaves `status` unconstrained and the planner cannot use it as an index
+prefix. It appeared only in `rejectedPlans`, both as written and with both
+branches rewritten to name `status` explicitly. An index no plan selects is
+write amplification on every task for nothing.
+
+What makes the residual filter acceptable is the bound: the scan covers one
+farmer's tasks up to the seven-day horizon, which is tens to low hundreds of
+documents. The backward end is deliberately unbounded, because an overdue task
+is unbounded by definition — a spray missed three weeks ago is still missed.
+`calendarToday.integration.test.ts` asserts on the _winning_ plan, not on the
+explain document as a whole; the first version of that assertion searched the
+raw JSON for an index name, which passes on a rejected plan and would have let
+this regress silently.
+
+**The generator's index is sparse.** `{ plotId, generationBatchId }` answers one
+question — "has this batch already run on this plot?" — and finds the previous
+batch's tasks when a new batch supersedes them. Sparse because a manual task has
+no batch, and indexing every null would be most of the collection for a key
+nobody looks up.
+
+**`status` did not replace `completedOn`; it joined it.** `completedOn` could
+already say done or not-done. What it had no way to say is that a farmer looked
+at a task and decided against it, and a skipped task is neither outstanding nor
+finished. The two are written together and never independently:
+
+| `status`  | `completedAt`         | `completedOn`       |
+| --------- | --------------------- | ------------------- |
+| `pending` | `null`                | `null`              |
+| `done`    | the instant they said | the day it was done |
+| `skipped` | the instant they said | `null`              |
+
+`completedAt` is an instant and `completedOn` is a day because they answer
+different questions: when the farmer said so, and when the work happened. A
+farmer ticking off Tuesday's spray on Thursday evening produces two different
+and both correct values. `skipped` has no day, because there is no day on which
+the work was carried out.
+
+**`isUserEdited` is a stronger guarantee than `completedOn`.** Regeneration
+already spared finished work; it did not spare a task whose date or title the
+farmer had corrected and not yet done. That task is theirs now, even though the
+generator made it. Both the Day 11 `syncTemplateTasks` and the Day 12
+generator carry the flag in their delete filter.
 
 **`title` is sometimes a key.** A template task stores
 `calendar.task.paddy.topDressing1.title`, not a sentence, because the server has
@@ -803,6 +873,86 @@ vocabularies are deliberately separate — `activities.type` uses `fertilizer`
 and `pesticide` for a record, `calendarTasks.type` uses `fertilising` and
 `pest_control` for an intention — and neither should be quietly widened into
 the other.
+
+---
+
+## 20. `cropStageTemplates` — reference data
+
+**Implemented — Day 12.** `server/src/models/cropStageTemplate.model.ts`,
+seeded by `server/src/seed/cropStageTemplates.ts` (`npm run seed:templates`).
+
+One document is one growth stage of one crop: "PADDY, tillering, days 14–39,
+and these three things to do in it". A plot's calendar is the stages for its
+crop laid end to end from the day it was sown.
+
+| Field             | Type     | Required | Notes                                           |
+| ----------------- | -------- | -------- | ----------------------------------------------- |
+| `_id`             | String   | ✓        | **Server-minted UUID v4** — see below           |
+| `cropId`          | Enum     | ✓        | `CROP_CODES`, matching `plots.crop`             |
+| `stageName`       | Locale   | ✓        | `{ ta, si, en }`. Displayed as-is               |
+| `startOffsetDays` | Number   | ✓        | Days from the sowing date to the stage's start  |
+| `durationDays`    | Number   | ✓        | 1–730                                           |
+| `tasks`           | [Object] | ✓        | See below. May be empty                         |
+| `isActive`        | Boolean  | ✓        | Default `true`. Never deleted, only deactivated |
+| `version`         | Number   | ✓        | Bumped only when the agronomy actually changes  |
+
+**`tasks[]` element**
+
+```
+{
+  taskType:   'sowing' | 'fertilising' | 'irrigation' | 'pest_control' | 'weeding' | 'harvest',
+  offsetDays: Number,      // from the SOWING DATE, not from the stage start
+  titleKey:   String,      // i18n key, never a sentence
+  isCritical: Boolean
+}
+```
+
+**Indexes**
+
+```js
+{ cropId: 1, startOffsetDays: 1 }         // the generator's read, in season order
+{ cropId: 1, 'stageName.en': 1 }          // unique — the seed's upsert key
+```
+
+**Why the `_id` is a UUID and not an ObjectId.** The convention above gives
+ObjectIds to everything the farmer does not author, and this is a deliberate
+exception. These rows are seeded independently into every environment, and an
+id the seed can compute rather than discover is what keeps a reference to a
+stage working across a dump, a restore and a fresh developer laptop. Nothing
+about it is client-generated; no request body can set it.
+
+**Why the name index is unique.** It is the seed's upsert key, and "idempotent"
+has to survive two seeds racing. Without the constraint both miss on the find,
+both insert, and the crop quietly grows a duplicate stage that the generator
+then emits twice.
+
+**`offsetDays` is measured from the sowing date, not from the stage start.**
+Both readings are defensible and only one can be right, so it is stated in the
+model and asserted by the seed. A task at `offsetDays: 21` inside a stage
+running 14–39 falls on sowing + 21 days, which is day 8 of that stage. The
+generator then writes `addDays(sowingDate, offsetDays)` with no stage
+arithmetic in it, and a stage whose boundaries are corrected does not silently
+move the tasks inside it.
+
+**Relationship to `crop-calendar-templates.json`.** The JSON file is Day 11's
+flat list of activities per crop and still drives `syncTemplateTasks`. This
+collection is the same agronomy with the growth stage put back in. The seed
+refuses to run if the two have drifted — it compares
+`dayOffset:type:titleKey` on both sides, per crop — because a farmer can hold a
+calendar generated from one and a stage bar drawn from the other, and a day
+corrected in one and not the other is invisible in testing and confusing in a
+field. It also checks that each crop's stages tile its season exactly, with no
+gap the stage bar cannot label and no overlap putting a plot in two stages at
+once.
+
+**Nothing is ever deleted.** A calendar generated last season came from a row;
+removing it would make that calendar unexplainable. A corrected stage is
+updated in place, with `version` incremented, under the same `_id`.
+
+**It ships unreviewed.** Every `startOffsetDays`, `durationDays` and
+`isCritical` is indicative dry-zone (Anuradhapura/Polonnaruwa) timing compiled
+from general DOA guidance, and needs an agronomist to confirm or correct it
+before release. The seed file says so in its own header.
 
 ---
 
@@ -915,15 +1065,16 @@ the other.
 
 ## Seed Data Requirements
 
-| Collection     | Records | Source                                |
-| -------------- | ------- | ------------------------------------- |
-| `crops`        | 10      | Manual, trilingual                    |
-| `diseases`     | 15      | Matched to ML label set               |
-| `markets`      | 6       | Sri Lankan economic centres           |
-| `marketPrices` | ~2,000  | 12 months × 5 crops × 4 markets       |
-| `farmers`      | 20      | Generated demo accounts               |
-| `plots`        | 40      | Distributed across 3 districts        |
-| `scans`        | 200     | Seeded to trigger outbreak clustering |
+| Collection           | Records | Source                                       |
+| -------------------- | ------- | -------------------------------------------- |
+| `crops`              | 10      | Manual, trilingual                           |
+| `diseases`           | 15      | Matched to ML label set                      |
+| `markets`            | 6       | Sri Lankan economic centres                  |
+| `marketPrices`       | ~2,000  | 12 months × 5 crops × 4 markets              |
+| `farmers`            | 20      | Generated demo accounts                      |
+| `plots`              | 40      | Distributed across 3 districts               |
+| `scans`              | 200     | Seeded to trigger outbreak clustering        |
+| `cropStageTemplates` | 25      | 5 stages × 5 crops. `npm run seed:templates` |
 
 **Seed the scan data deliberately.** Cluster a subset within a 5 km radius over a
 7-day window so that outbreak detection has something to find during a

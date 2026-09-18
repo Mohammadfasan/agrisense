@@ -2,7 +2,7 @@
 
 **Base URL:** `/api/v1`
 **Auth:** Bearer access token (`Authorization: Bearer <token>`)
-**Version:** 0.3 — Day 11
+**Version:** 0.4 — Day 12
 
 > This file was created on Day 10 alongside the plots API. `/plots` and
 > `/calendar` are specified in full; `/auth` and `/farmers` are listed as built
@@ -260,6 +260,71 @@ would mean overwriting the real deletion time with a later one.
 
 ---
 
+### `POST /api/v1/plots/:plotId/calendar/generate`
+
+Builds the plot's season from the crop stage templates (`docs/schema.md` §20),
+and records the sowing date on the plot.
+
+**Body**
+
+| Field               | Required | Notes                             |
+| ------------------- | -------- | --------------------------------- |
+| `sowingDate`        | ✓        | `YYYY-MM-DD`. Day 0 of the season |
+| `generationBatchId` | ✓        | UUID v4, **minted by the client** |
+
+**`201`** on a run that wrote tasks, **`200`** on a replay:
+
+```json
+{
+  "tasks": [ … ],
+  "generationBatchId": "b41f8a02-9d3c-4e5f-8a1b-2c3d4e5f6a7b",
+  "sowingDate": "2026-05-01",
+  "supersededCount": 0
+}
+```
+
+Tasks come back in due-date order, each with `source: "template"`,
+`status: "pending"`, `isUserEdited: false`, `version: 1`, and the batch id.
+Due dates are computed as whole days from `sowingDate` — never as instants, for
+the reason under "Days are not timestamps".
+
+**Idempotency is on `generationBatchId`, not on the request.** The client mints
+the id before the request leaves the phone, so a retry after a lost response
+carries the same one: the server finds the tasks that id already wrote and
+returns them with `200`, rather than laying a second calendar over the first.
+
+**A new batch id means "rebuild".** That is the farmer deliberately asking for
+it, usually because they corrected the sowing date. Only then is the previous
+batch superseded, and `supersededCount` says how many tasks were tombstoned.
+
+**What a rebuild may clear is narrow.** Only tasks that are all three of
+generated, still `pending`, and `isUserEdited: false`. Everything else survives:
+
+| Survives            | Because                                         |
+| ------------------- | ----------------------------------------------- |
+| `source: "manual"`  | The farmer's own writing                        |
+| `status: "done"`    | A record of work that happened in a field       |
+| `status: "skipped"` | A decision the farmer already made              |
+| `isUserEdited`      | A correction they have already made to the plan |
+
+Superseded tasks are soft-deleted rather than removed, so a phone holding
+yesterday's calendar can learn they are gone.
+
+The delete and the insert are one transaction where the deployment supports one
+(a replica set or mongos). Against a standalone `mongod` they run unwrapped and
+the server logs a warning once — see `server/src/shared/db/transaction.ts` for
+why that trade was taken rather than 500ing every generate in development.
+
+| Status | Meaning                                                                 |
+| ------ | ----------------------------------------------------------------------- |
+| `201`  | Generated                                                               |
+| `200`  | This batch had already run; the stored tasks were returned untouched    |
+| `404`  | `PLOT_NOT_FOUND` — absent, not yours, or deleted. **Never `403`**       |
+| `422`  | Bad body, or `:plotId` is not a UUID v4                                 |
+| `503`  | No stage templates for this crop — `npm run seed:templates` has not run |
+
+---
+
 ## Crop calendar — `/calendar`
 
 All routes require `authenticate` + role `farmer`, applied to the whole router.
@@ -310,6 +375,10 @@ made a task.
   "notes": "calendar.task.paddy.topDressing1.description",
   "dueDate": "2026-05-15",
   "completedOn": null,
+  "status": "pending",
+  "completedAt": null,
+  "isUserEdited": false,
+  "generationBatchId": "b41f8a02-9d3c-4e5f-8a1b-2c3d4e5f6a7b",
   "source": "template",
   "reminderAt": null,
   "version": 1,
@@ -318,6 +387,31 @@ made a task.
   "updatedAt": "2026-05-01T04:10:00.000Z"
 }
 ```
+
+**`status` and `completedOn` are both present, and both mean something.**
+`status` is where the task stands — `pending`, `done` or `skipped`.
+`completedOn` is the _day_ the work happened; `completedAt` is the _instant_
+the farmer said so. A farmer ticking off Tuesday's spray on Thursday evening
+produces two different and both correct values. The server writes all three
+together and a client may set none of them directly; see
+`PATCH /calendar/tasks/:id`.
+
+| `status`  | `completedAt`         | `completedOn`       |
+| --------- | --------------------- | ------------------- |
+| `pending` | `null`                | `null`              |
+| `done`    | the instant they said | the day it was done |
+| `skipped` | the instant they said | `null`              |
+
+`skipped` exists because "I looked at this and decided not to do it" is neither
+outstanding nor done, and folding it into either loses the only trace a missed
+task leaves.
+
+**`isUserEdited` is what protects a task from regeneration.** `false` on a
+freshly generated task; `true` the moment a farmer writes to it in any way.
+Rebuilding a calendar clears only generated, still-pending, unedited tasks.
+
+**`generationBatchId`** names the generation run that produced the task, and is
+`null` on a manual one.
 
 **`title` is an i18n key when `source` is `template`**, and free text when it is
 `manual`. The server does not choose which of three languages to write a
@@ -377,6 +471,60 @@ two are different days.
 
 ---
 
+### `GET /api/v1/calendar/today`
+
+The home screen: what is late, what is due today, and what is coming — across
+every live plot, with the plot's name on each task.
+
+**Query**
+
+| Param  | Type | Default          | Notes                                  |
+| ------ | ---- | ---------------- | -------------------------------------- |
+| `date` | day  | today in Colombo | The day to compute the buckets against |
+
+**`200`**
+
+```json
+{
+  "date": "2026-06-10",
+  "overdue": [
+    { "_id": "…", "plotName": "Upper field", "dueDate": "2026-06-08", "status": "pending" }
+  ],
+  "today": [],
+  "next7": []
+}
+```
+
+Every task carries a `plotName` alongside the usual fields. The name and not
+the whole plot: a farmer reading "spray the upper field" needs to know which
+field, not its boundary polygon.
+
+The three buckets are deliberately not symmetric:
+
+| Bucket    | Days                | Statuses  | Why                                                                  |
+| --------- | ------------------- | --------- | -------------------------------------------------------------------- |
+| `overdue` | before `date`       | `pending` | Unbounded backwards — a spray missed three weeks ago is still missed |
+| `today`   | `date`              | **all**   | So the day does not empty out as the farmer works through it         |
+| `next7`   | `date`+1 … `date`+7 | `pending` | It is a plan, so only what is outstanding belongs in it              |
+
+**The server computes the buckets, and echoes the day it used.** A client that
+re-derived the boundaries from a "today" of its own would disagree with the
+server for five and a half hours out of every twenty-four, because Sri Lanka is
+UTC+05:30. `date` is accepted so the phone can say what day it is where the
+farmer is standing; the fallback is today in Colombo, not today in UTC.
+
+**One round trip, whatever the farmer owns.** The plot name is joined inside
+MongoDB with a `$lookup`, not fetched per task. Tasks on a plot the farmer has
+deleted are dropped — the plot is gone from `/plots`, and a task on it would be
+work on a field they have said they no longer have. `docs/schema.md` §19 has
+the query plan and why the obvious `status` index was measured and removed.
+
+| Status | Meaning                                                 |
+| ------ | ------------------------------------------------------- |
+| `422`  | `date` is malformed, or names a day that does not exist |
+
+---
+
 ### `GET /api/v1/calendar/:id`
 
 **`200`** — `{ "task": { … } }`. `404` if absent, not yours, or deleted.
@@ -426,6 +574,59 @@ means, which is exactly what an omitted field in a `PUT` does not.
 
 ---
 
+### `PATCH /api/v1/calendar/tasks/:id`
+
+Moves a task between `pending`, `done` and `skipped`. Distinct from
+`PATCH /calendar/:id`, which merges what a task _says_; this one changes where
+it _stands_.
+
+**Body**
+
+| Field     | Required | Notes                                          |
+| --------- | -------- | ---------------------------------------------- |
+| `status`  | ✓        | `pending` \| `done` \| `skipped`               |
+| `version` | ✓        | The version the client believes it is updating |
+
+**`200`** — `{ "task": { … } }`, with `version` incremented.
+
+**`version` is required, and it is the point of the endpoint.** Two phones
+holding the same calendar offline will both tick the same task. Without the
+check the second write silently overwrites the first and nobody is told; with
+it, the loser gets a `409` and the client can show the farmer what actually
+happened. A version _ahead_ of the stored one is a `409` too — a client that
+invented a version is as wrong as one that is stale.
+
+**`409` carries the current server record**, so the client does not need a
+second request in the one moment it most needs an answer ready:
+
+```json
+{
+  "error": {
+    "code": "CALENDAR_TASK_VERSION_CONFLICT",
+    "message": "This task was changed elsewhere",
+    "requestId": "3f1c…",
+    "details": { "task": { "_id": "…", "status": "done", "version": 2 } }
+  }
+}
+```
+
+**`completedAt` and `completedOn` are not in the body.** The server derives both
+from `status` — see the table on the task object — so the three can never drift
+apart. A client that could set them could record work as done on a day it was
+not.
+
+On success the server also sets `isUserEdited`, so the task is no longer the
+generator's to clear on a rebuild.
+
+| Status | Meaning                                                                             |
+| ------ | ----------------------------------------------------------------------------------- |
+| `200`  | Applied                                                                             |
+| `404`  | Absent, not yours, or deleted. **Never `409`** — that would leak that the id exists |
+| `409`  | `version` is not the stored one                                                     |
+| `422`  | Bad body, or `:id` is not a UUID v4                                                 |
+
+---
+
 ### `POST /api/v1/calendar/:id/complete`
 
 Ticks a task off. **`200`** — `{ "task": { … } }`.
@@ -457,10 +658,12 @@ work on a field the farmer has just said they no longer have.
 
 Beyond the generic set in `docs/architecture.md`:
 
-| Code                      | Status | Meaning                                                       |
-| ------------------------- | ------ | ------------------------------------------------------------- |
-| `PROFILE_NOT_FOUND`       | 404    | Authenticated, but no farmer profile yet — open the form      |
-| `PLOT_NOT_FOUND`          | 404    | No plot with that id is readable by this caller. Deliberately |
-|                           |        | the same whether it is absent, another farmer's, or deleted   |
-| `CALENDAR_TASK_NOT_FOUND` | 404    | The same, for a calendar task. A write naming a plot the      |
-|                           |        | caller does not own answers `PLOT_NOT_FOUND` instead          |
+| Code                             | Status | Meaning                                                       |
+| -------------------------------- | ------ | ------------------------------------------------------------- |
+| `PROFILE_NOT_FOUND`              | 404    | Authenticated, but no farmer profile yet — open the form      |
+| `PLOT_NOT_FOUND`                 | 404    | No plot with that id is readable by this caller. Deliberately |
+|                                  |        | the same whether it is absent, another farmer's, or deleted   |
+| `CALENDAR_TASK_NOT_FOUND`        | 404    | The same, for a calendar task. A write naming a plot the      |
+|                                  |        | caller does not own answers `PLOT_NOT_FOUND` instead          |
+| `CALENDAR_TASK_VERSION_CONFLICT` | 409    | A status write carried a stale or invented `version`.         |
+|                                  |        | `error.details.task` holds the current server record          |
