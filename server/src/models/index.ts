@@ -13,6 +13,12 @@ export {
   type CalendarTaskDocument,
 } from './calendarTask.model';
 export {
+  CropStageTemplateModel,
+  type CropStageTask,
+  type CropStageTemplate,
+  type CropStageTemplateDocument,
+} from './cropStageTemplate.model';
+export {
   FarmerProfileModel,
   type FarmerProfile,
   type FarmerProfileDocument,
