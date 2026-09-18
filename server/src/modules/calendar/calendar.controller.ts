@@ -8,12 +8,14 @@ import {
   calendarTaskCreateSchema,
   calendarTaskIdSchema,
   calendarTaskUpdateSchema,
+  calendarTodayQuerySchema,
   calendarUpcomingQuerySchema,
   parseOrThrow,
 } from '@shared';
 import type { RequestUser } from '@modules';
 
 import * as service from './calendarTask.service';
+import * as todayService from './calendarToday.service';
 
 /**
  * `/calendar` — a farmer's own crop calendar, and nobody else's.
@@ -41,6 +43,26 @@ export async function listUpcoming(req: Request, res: Response): Promise<void> {
   const query = parseOrThrow(calendarUpcomingQuerySchema, req.query, 'calendar query');
 
   res.status(HttpStatus.OK).json({ tasks: await service.upcoming(user.id, query) });
+}
+
+/**
+ * The home screen: overdue, today and the next seven days, across every plot.
+ *
+ * The buckets are computed server-side and the day they were computed against
+ * is echoed back, so a client never has to re-derive the boundaries from a
+ * "today" of its own. At UTC+05:30 those two answers differ for five and a
+ * half hours out of every twenty-four.
+ */
+export async function getToday(req: Request, res: Response): Promise<void> {
+  const user = requireUser(req);
+  const query = parseOrThrow(calendarTodayQuerySchema, req.query, 'calendar query');
+
+  const buckets =
+    query.date === undefined
+      ? await todayService.today(user.id)
+      : await todayService.today(user.id, query.date);
+
+  res.status(HttpStatus.OK).json(buckets);
 }
 
 export async function getTask(req: Request, res: Response): Promise<void> {

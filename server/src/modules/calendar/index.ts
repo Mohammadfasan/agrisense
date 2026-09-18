@@ -1,6 +1,12 @@
 export { calendarRouter, plotCalendarRouter } from './calendar.routes';
 export { generateForPlot, type GenerateResult } from './calendarGeneration.service';
 export {
+  today,
+  pipeline as todayPipeline,
+  type TodayBuckets,
+  type TodayTask,
+} from './calendarToday.service';
+export {
   complete,
   discardTasksForPlot,
   generateTasksForPlot,

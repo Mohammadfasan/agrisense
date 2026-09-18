@@ -173,15 +173,23 @@ calendarTaskSchema.index(
 // `plotId` can only use `userId` as a prefix — which would leave the date
 // range and the sort to be done in memory over every task the farmer owns.
 calendarTaskSchema.index({ userId: 1, deletedAt: 1, dueDate: 1 }, { name: 'owner_live_due' });
-// `/calendar/today`, added Day 12. `owner_live_due` above cannot serve it:
-// that pipeline also matches on `status`, which sits *after* `dueDate` there,
-// so the range on the date would be the last usable field and every status
-// would be read and discarded afterwards. Equality fields first again --
-// owner, live, status -- then the date as the range and sort key.
-calendarTaskSchema.index(
-  { userId: 1, deletedAt: 1, status: 1, dueDate: 1 },
-  { name: 'owner_live_status_due' },
-);
+// `/calendar/today` has no index of its own, and that is a finding rather
+// than an omission. `owner_live_due` above is what `explain()` picks for it:
+// IXSCAN on (userId, deletedAt, dueDate) bounded by the seven-day horizon,
+// then the status test as a residual filter on the FETCH.
+//
+// A `{ userId, deletedAt, status, dueDate }` index was written, measured and
+// removed. The pipeline's `$match` carries an `$or` -- the `today` bucket
+// wants every status while `overdue` and `next7` want only `pending` -- and
+// with `status` unconstrained on one branch the planner cannot use it as an
+// index prefix. It scored the status index into the rejected plans and chose
+// `owner_live_due` anyway, both as written and with both branches rewritten to
+// name `status`. An index no plan selects is write cost with nothing bought.
+//
+// What makes that acceptable is the bound: the scan covers one farmer's tasks
+// up to the horizon, which is tens to low hundreds of documents, and the
+// backward end is unbounded because an overdue task is unbounded by
+// definition. `docs/schema.md` §19 records the measurement.
 // The generator's idempotency check: "has this batch already run on this
 // plot?". Nothing else queries by batch, so the plot leads and the batch id
 // follows, which also makes it the index that finds the *previous* batch's

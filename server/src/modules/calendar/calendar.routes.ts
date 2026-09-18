@@ -8,6 +8,7 @@ import {
   completeTask,
   deleteTask,
   getTask,
+  getToday,
   listTasks,
   listUpcoming,
   patchTask,
@@ -32,6 +33,13 @@ calendarRouter.use(authenticate, authorise('farmer'));
  * an id — and answer 422, because "upcoming" is not a UUID.
  */
 calendarRouter.route('/upcoming').get(asyncHandler(listUpcoming));
+
+/**
+ * `/today` is declared here, with `/upcoming`, and for the same reason: ahead
+ * of `/:id`, which would otherwise read the literal path as an id and answer
+ * 422 because "today" is not a UUID.
+ */
+calendarRouter.route('/today').get(asyncHandler(getToday));
 
 calendarRouter.route('/').get(asyncHandler(listTasks));
 
