@@ -7,6 +7,7 @@ import {
   calendarTaskCompleteSchema,
   calendarTaskCreateSchema,
   calendarTaskIdSchema,
+  calendarTaskStatusSchema,
   calendarTaskUpdateSchema,
   calendarTodayQuerySchema,
   calendarUpcomingQuerySchema,
@@ -85,6 +86,22 @@ export async function patchTask(req: Request, res: Response): Promise<void> {
   const patch = parseOrThrow(calendarTaskUpdateSchema, req.body, 'calendar task');
 
   res.status(HttpStatus.OK).json({ task: await service.update(user.id, taskId(req), patch) });
+}
+
+/**
+ * `PATCH /calendar/tasks/:id` — move a task between pending, done and skipped.
+ *
+ * Separate from `PATCH /calendar/:id`, which merges content. This one writes
+ * lifecycle, requires the `version` the client believes it holds, and answers
+ * `409` with the current record when that version has moved on. A client
+ * cannot set `completedAt` or `completedOn` through it: the server derives
+ * both from `status`, so the three can never drift apart.
+ */
+export async function patchTaskStatus(req: Request, res: Response): Promise<void> {
+  const user = requireUser(req);
+  const input = parseOrThrow(calendarTaskStatusSchema, req.body, 'task status');
+
+  res.status(HttpStatus.OK).json({ task: await service.setStatus(user.id, taskId(req), input) });
 }
 
 /**

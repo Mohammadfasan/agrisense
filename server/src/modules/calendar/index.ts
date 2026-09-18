@@ -13,6 +13,7 @@ export {
   getById,
   list,
   save,
+  setStatus,
   softDelete,
   syncTemplateTasks,
   upcoming,

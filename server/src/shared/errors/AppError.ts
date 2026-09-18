@@ -65,6 +65,15 @@ export const ErrorCode = {
    * created to be missing.
    */
   CALENDAR_TASK_NOT_FOUND: 'CALENDAR_TASK_NOT_FOUND',
+  /**
+   * A status write carried a `version` that is no longer the stored one --
+   * somebody else changed the task first. Distinct from a bare `CONFLICT` so a
+   * client can branch on it without parsing a message, and returned with the
+   * current server record attached so it can show the farmer what actually
+   * happened rather than silently overwriting it. See `PATCH
+   * /calendar/tasks/:id` in `docs/api-spec.md`.
+   */
+  CALENDAR_TASK_VERSION_CONFLICT: 'CALENDAR_TASK_VERSION_CONFLICT',
 } as const;
 
 export type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode];

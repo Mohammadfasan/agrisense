@@ -12,6 +12,7 @@ import {
   listTasks,
   listUpcoming,
   patchTask,
+  patchTaskStatus,
   putTask,
 } from './calendar.controller';
 import { generateCalendar } from './calendarGeneration.controller';
@@ -42,6 +43,16 @@ calendarRouter.route('/upcoming').get(asyncHandler(listUpcoming));
 calendarRouter.route('/today').get(asyncHandler(getToday));
 
 calendarRouter.route('/').get(asyncHandler(listTasks));
+
+/**
+ * Status changes, under `/tasks/:id` rather than on `/:id`.
+ *
+ * A separate path because it is a different kind of write: `PATCH /:id` merges
+ * what a task *says*, while this one moves where it *stands* and carries the
+ * version that makes that safe. Declared before `/:id` so the segment ordering
+ * is visible here rather than left to Express's matcher to be reasoned about.
+ */
+calendarRouter.route('/tasks/:id').patch(asyncHandler(patchTaskStatus));
 
 /**
  * `PUT` on an id the client chose, rather than `POST` to the collection, for

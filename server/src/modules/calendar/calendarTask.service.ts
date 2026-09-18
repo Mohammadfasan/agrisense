@@ -14,6 +14,7 @@ import {
   type CalendarListQuery,
   type CalendarTaskCompleteInput,
   type CalendarTaskInput,
+  type CalendarTaskStatusInput,
   type CalendarTaskUpdateInput,
   type CalendarUpcomingQuery,
   type IsoDate,
@@ -537,4 +538,84 @@ function expectWritten(value: CalendarTask | null): CalendarTask {
     throw AppError.internal('Calendar task upsert returned no document');
   }
   return value;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Status, with optimistic concurrency (Day 12)                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Moves a task between `pending`, `done` and `skipped`, if the caller is
+ * holding the version that is actually stored.
+ *
+ * **The version check is the point of the endpoint.** Two phones hold the same
+ * calendar offline and both tick the same task; without the check the second
+ * write silently overwrites the first and nobody is ever told. With it, the
+ * loser gets a `409` carrying the current server record, and the client can
+ * show the farmer what happened rather than a screen that quietly disagrees
+ * with their neighbour's.
+ *
+ * The compare and the write are one operation, not a read followed by a write:
+ * `version` is in the filter, so MongoDB does the comparison and the update
+ * atomically. A read-then-write would have exactly the race it was added to
+ * close. A filter that matches nothing is then ambiguous -- wrong version, or
+ * no such task -- so the reason is worked out afterwards by a second read,
+ * which is off the hot path because it only runs when something has already
+ * gone wrong.
+ *
+ * `completedOn` is written in step with `status`, never independently. Day
+ * 11's `/upcoming` and the client both read it, and the two saying different
+ * things about whether the work is done would be worse than either being
+ * absent.
+ */
+export async function setStatus(
+  userId: string,
+  taskId: string,
+  input: CalendarTaskStatusInput,
+  today: IsoDate = todayInSriLanka(),
+): Promise<CalendarTask> {
+  const owner = toObjectId(userId);
+
+  const task = await CalendarTaskModel.findOneAndUpdate(
+    { ...liveOwnedBy(owner, taskId), version: input.version },
+    {
+      $set: {
+        status: input.status,
+        // An instant, because this records when the farmer said so.
+        completedAt: input.status === 'pending' ? null : new Date(),
+        // A day, because this records when the work happened. Only `done`
+        // produces one: a skipped task has no day on which it was carried out,
+        // and writing one would make the two fields contradict each other.
+        completedOn: input.status === 'done' ? today : null,
+        // A farmer has now touched this task, so a rebuild may not clear it.
+        isUserEdited: true,
+      },
+      $inc: { version: 1 },
+    },
+    { new: true, runValidators: true },
+  )
+    .lean<CalendarTask>()
+    .exec();
+
+  if (task) {
+    return task;
+  }
+
+  // The filter missed. Either the task is not this caller's -- or never
+  // existed, or is deleted -- or the version moved. Only the second is a
+  // conflict, and only the second may return the record.
+  const current = await CalendarTaskModel.findOne(liveOwnedBy(owner, taskId))
+    .lean<CalendarTask>()
+    .exec();
+
+  if (!current) {
+    throw taskNotFound();
+  }
+  throw new AppError('This task was changed elsewhere', HttpStatus.CONFLICT, {
+    code: ErrorCode.CALENDAR_TASK_VERSION_CONFLICT,
+    // The whole record, not just the version. A client that has to make a
+    // second request to find out what it collided with will show the farmer a
+    // spinner in the one moment it most needs to show them an answer.
+    details: { task: current },
+  });
 }
