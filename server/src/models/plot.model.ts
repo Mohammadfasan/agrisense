@@ -1,6 +1,13 @@
 import { Schema, model, type HydratedDocument, type Model, type Types } from 'mongoose';
 
-import { CROP_CODES, type CropCode, type GeoPoint, type GeoPolygon } from '@shared/types';
+import {
+  CROP_CODES,
+  ISO_DATE_PATTERN,
+  type CropCode,
+  type GeoPoint,
+  type GeoPolygon,
+  type IsoDate,
+} from '@shared/types';
 
 /**
  * `plots` — one worked parcel of land, owned by one farmer.
@@ -38,6 +45,19 @@ export interface Plot {
   /** Derived from `boundary` when the client does not send one. */
   centroid: GeoPoint;
   plantedAt?: Date | null;
+  /**
+   * The day the crop went in, as `YYYY-MM-DD`. Added Day 12 by
+   * `POST /plots/:plotId/calendar/generate`, which persists what it generated
+   * from.
+   *
+   * **A day, where `plantedAt` above is an instant, and the two are kept in
+   * step rather than one replacing the other.** `plantedAt` is Day 10's field
+   * and what `syncTemplateTasks` still reads; this is the same fact stored the
+   * way `docs/schema.md` §19 says a farming day should be stored, because a
+   * `Date` at Colombo midnight serialises to 18:30 the day before and puts the
+   * whole season one day early. New code should read this one.
+   */
+  sowingDate?: IsoDate | null;
   notes?: string | null;
   /** Incremented on every write, including the soft delete. */
   version: number;
@@ -104,6 +124,11 @@ const plotSchema = new Schema<Plot>(
     // one is a defect rather than a bad request.
     centroid: { type: centroidSchema, required: true },
     plantedAt: { type: Date, default: null },
+    sowingDate: {
+      type: String,
+      default: null,
+      match: [ISO_DATE_PATTERN, 'sowingDate must be a day as YYYY-MM-DD'],
+    },
     notes: { type: String, trim: true, maxlength: 500, default: null },
     version: { type: Number, default: 1, min: 1 },
     deletedAt: { type: Date, default: null },

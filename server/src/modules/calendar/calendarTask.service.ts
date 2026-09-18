@@ -17,6 +17,7 @@ import {
   type CalendarTaskUpdateInput,
   type CalendarUpcomingQuery,
   type IsoDate,
+  type TaskStatus,
 } from '@shared';
 
 import { templateFor } from './cropCalendar.templates';
@@ -168,8 +169,18 @@ export async function save(
           // "never set" without inspecting which keys came back.
           notes: input.notes ?? null,
           reminderAt: input.reminderAt ?? null,
+          // A farmer wrote this, so regeneration may never clear it. True on
+          // a replace as well as an insert: the point of the flag is "a human
+          // has had a hand in this task", and a replace is exactly that.
+          isUserEdited: true,
         },
-        $setOnInsert: { source: 'manual', completedOn: null },
+        $setOnInsert: {
+          source: 'manual',
+          completedOn: null,
+          status: 'pending',
+          completedAt: null,
+          generationBatchId: null,
+        },
         $inc: { version: 1 },
       },
       {
@@ -229,7 +240,14 @@ export async function update(
     liveOwnedBy(owner, taskId),
     // The patch goes in as-is: Zod has already stripped everything not in the
     // schema, so no unknown path and no `$` operator survives to reach here.
-    { $set: patch, $inc: { version: 1 } },
+    // `isUserEdited` and the `status` pair are added rather than accepted from
+    // the body -- a client cannot claim either, and `completedOn` arriving
+    // here without `status` following it would leave the two disagreeing about
+    // whether the work is done.
+    {
+      $set: { ...patch, isUserEdited: true, ...statusFieldsFor(patch.completedOn) },
+      $inc: { version: 1 },
+    },
     { new: true, runValidators: true },
   )
     .lean<CalendarTask>()
@@ -260,7 +278,15 @@ export async function complete(
 ): Promise<CalendarTask> {
   const task = await CalendarTaskModel.findOneAndUpdate(
     liveOwnedBy(toObjectId(userId), taskId),
-    { $set: { completedOn: input.completedOn ?? todayInSriLanka() }, $inc: { version: 1 } },
+    {
+      $set: {
+        completedOn: input.completedOn ?? todayInSriLanka(),
+        status: 'done',
+        completedAt: new Date(),
+        isUserEdited: true,
+      },
+      $inc: { version: 1 },
+    },
     { new: true, runValidators: true },
   )
     .lean<CalendarTask>()
@@ -321,6 +347,11 @@ export async function generateTasksForPlot(plot: Plot): Promise<CalendarTask[]> 
       deletedAt: null,
       source: 'template',
       completedOn: null,
+      // Added Day 12, alongside the field. `completedOn: null` alone spares
+      // work already finished; it does not spare a task whose date or title a
+      // farmer has corrected but not yet done. Both are the farmer's, and a
+      // rebuild of the *plan* must not discard either.
+      isUserEdited: false,
     },
     { $set: { deletedAt: new Date() }, $inc: { version: 1 } },
   ).exec();
@@ -400,6 +431,16 @@ function buildTemplateTasks(plot: Plot): CalendarTask[] {
     notes: activity.descriptionKey,
     dueDate: addDays(planted, activity.dayOffset),
     completedOn: null,
+    status: 'pending' as const,
+    completedAt: null,
+    // Nothing a farmer has touched, by definition: the generator has only
+    // just made it. This is what the *next* regeneration reads to decide
+    // whether it may clear this task away again.
+    isUserEdited: false,
+    // Null rather than a fresh UUID. These come from `plantedAt` moving, not
+    // from a client asking for a run, so there is no batch to belong to --
+    // `POST /plots/:plotId/calendar/generate` is the path that has one.
+    generationBatchId: null,
     source: 'template' as const,
     reminderAt: null,
     version: 1,
@@ -435,6 +476,30 @@ async function assertOwnsPlot(userId: Types.ObjectId, plotId: string): Promise<v
       code: ErrorCode.PLOT_NOT_FOUND,
     });
   }
+}
+
+/**
+ * The `status`/`completedAt` pair implied by a `PATCH` that names
+ * `completedOn`, or nothing at all when it does not.
+ *
+ * `undefined` means the patch did not mention completion, and the stored
+ * lifecycle is left exactly as it was. `null` means a farmer is undoing a tick
+ * -- the task goes back to `pending` and the instant is cleared, because there
+ * is no longer a moment at which it was finished.
+ *
+ * A `skipped` task is not reachable from here on purpose. Skipping is a
+ * decision about the future, not a day on which something happened, and it has
+ * its own endpoint -- `PATCH /calendar/tasks/:id`.
+ */
+function statusFieldsFor(
+  completedOn: IsoDate | null | undefined,
+): { status: TaskStatus; completedAt: Date | null } | Record<string, never> {
+  if (completedOn === undefined) {
+    return {};
+  }
+  return completedOn === null
+    ? { status: 'pending', completedAt: null }
+    : { status: 'done', completedAt: new Date() };
 }
 
 /** Both ends are optional; either one alone still bounds the query. */

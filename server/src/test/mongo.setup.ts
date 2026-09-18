@@ -1,4 +1,4 @@
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { MongoMemoryReplSet } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
 import { afterAll, afterEach, beforeAll } from 'vitest';
 
@@ -10,14 +10,21 @@ import '@models';
  * One `mongod` per test file, torn down at the end; collections are emptied
  * between tests so ordering cannot leak state.
  *
+ * A **single-node replica set** rather than a standalone, since Day 12. A
+ * standalone refuses to start a transaction at all, so calendar generation
+ * would silently take the unwrapped fallback in `withTransaction` and the
+ * atomicity it claims would never be exercised by a test. One node costs
+ * roughly the same to boot and gives every test the same semantics as a
+ * production deployment that has a replica set.
+ *
  * Indexes are built explicitly rather than left to `autoIndex`, which is
  * asynchronous: without this, the first test asserting on the unique phone
  * index would race the index build and pass for the wrong reason.
  */
-let server: MongoMemoryServer | undefined;
+let server: MongoMemoryReplSet | undefined;
 
 beforeAll(async () => {
-  server = await MongoMemoryServer.create();
+  server = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
   mongoose.set('strictQuery', true);
   await mongoose.connect(server.getUri(), { dbName: 'agrisense-test' });
 

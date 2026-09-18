@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { asyncHandler } from '@shared';
 
 import { authenticate, authorise } from '../auth';
+import { plotCalendarRouter } from '../calendar';
 
 import { deletePlot, getPlot, listPlots, patchPlot, putPlot } from './plots.controller';
 
@@ -33,3 +34,12 @@ plotsRouter
   .put(asyncHandler(putPlot))
   .patch(asyncHandler(patchPlot))
   .delete(asyncHandler(deletePlot));
+
+/**
+ * A plot's own calendar, under the plot that owns it.
+ *
+ * Mounted before `/:id` would be reached for these paths, and it does not
+ * collide with it: `/:id` declares no sub-paths, so `/:plotId/calendar/...`
+ * only ever matches here.
+ */
+plotsRouter.use('/:plotId/calendar', plotCalendarRouter);

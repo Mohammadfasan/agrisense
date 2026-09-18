@@ -76,6 +76,29 @@ export type TaskSource = (typeof TASK_SOURCES)[number];
 
 export const taskSourceSchema = z.enum(TASK_SOURCES);
 
+/**
+ * Where a task stands.
+ *
+ * Added in Day 12 alongside calendar generation, and the third value is why it
+ * exists. `completedOn` can say a task was done and can say it was not; it has
+ * no way to say a farmer looked at it and decided not to do it. A skipped task
+ * is not outstanding — it must drop off the "what do I do next" list — and it
+ * is not done either, and collapsing the two loses the only information a
+ * missed spray leaves behind.
+ *
+ * `completedOn` is still written, in step, and still means the *day* the work
+ * happened. `status` and `completedAt` are the lifecycle and the instant.
+ */
+export const TASK_STATUSES = ['pending', 'done', 'skipped'] as const;
+
+export type TaskStatus = (typeof TASK_STATUSES)[number];
+
+export const taskStatusSchema = z.enum(TASK_STATUSES);
+
+export function isTaskStatus(value: unknown): value is TaskStatus {
+  return typeof value === 'string' && (TASK_STATUSES as readonly string[]).includes(value);
+}
+
 /* -------------------------------------------------------------------------- */
 /* Identifier                                                                  */
 /* -------------------------------------------------------------------------- */
@@ -204,6 +227,28 @@ export const calendarTaskSchema = calendarTaskWritableSchema.extend({
   /** Always present on a saved task, `null` until the work is done. */
   completedOn: isoDateSchema.nullable(),
   source: taskSourceSchema,
+  /** Where the task stands. `pending` until a farmer says otherwise. */
+  status: taskStatusSchema,
+  /**
+   * The instant the task reached `done` or `skipped`, or `null` while it is
+   * `pending`. An instant rather than a day, unlike `completedOn`, because
+   * this one records *when the farmer said so* rather than when the work
+   * happened — an audit trail, not agronomy. The two are written together and
+   * answer different questions.
+   */
+  completedAt: z.coerce.date().nullable(),
+  /**
+   * `true` once a farmer has touched this task in any way that regeneration
+   * must not undo. Generated tasks start `false`; a manual task is `true` from
+   * birth, because the farmer wrote the whole thing.
+   */
+  isUserEdited: z.boolean(),
+  /**
+   * The generation run that produced this task, or `null` on a manual one.
+   * What makes `POST .../calendar/generate` idempotent, and what tells one
+   * regeneration's output from the previous one's.
+   */
+  generationBatchId: uuidV4Schema.nullable(),
   reminderAt: z.string().datetime({ offset: true }).nullable(),
   /**
    * Bumped on every write, including the soft delete. The client compares it
@@ -287,3 +332,100 @@ export const calendarUpcomingQuerySchema = z.object({
 });
 
 export type CalendarUpcomingQuery = z.infer<typeof calendarUpcomingQuerySchema>;
+
+/* -------------------------------------------------------------------------- */
+/* Generation (Day 12)                                                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The body of `POST /plots/:plotId/calendar/generate`.
+ *
+ * **`generationBatchId` comes from the client, and that is what makes the
+ * endpoint idempotent.** A phone that fires the request, loses signal before
+ * the response and retries sends the same batch id; the server finds the tasks
+ * it already wrote under it and returns them, rather than generating a second
+ * calendar beside the first. A *new* batch id is the farmer deliberately
+ * asking for the calendar to be rebuilt — usually because they corrected the
+ * sowing date — and only then is the previous batch cleared away.
+ *
+ * It is a UUID v4 for the same reason every other id here is: the client mints
+ * it offline, before the server has heard of the run.
+ */
+export const calendarGenerateSchema = z.object({
+  sowingDate: isoDateSchema,
+  generationBatchId: uuidV4Schema,
+});
+
+export type CalendarGenerateInput = z.infer<typeof calendarGenerateSchema>;
+
+/**
+ * Query string for `GET /calendar/today`.
+ *
+ * `date` is optional and comes from the *client* when given, because the phone
+ * knows what day it is where the farmer is standing and a server in UTC does
+ * not — after 18:30 UTC the two disagree. The server's fallback is today in
+ * Colombo rather than today in UTC, for the same reason as
+ * {@link calendarTaskCompleteSchema}.
+ */
+export const calendarTodayQuerySchema = z.object({
+  date: isoDateSchema.optional(),
+});
+
+export type CalendarTodayQuery = z.infer<typeof calendarTodayQuerySchema>;
+
+/**
+ * The body of `PATCH /calendar/tasks/:id`.
+ *
+ * **`version` is required, and it is the whole point of the endpoint.** Two
+ * phones holding the same calendar offline will both tick the same task; the
+ * one whose `version` no longer matches what is stored is told so — `409`,
+ * with the current record attached — instead of silently overwriting the
+ * other's answer. A farmer can then be shown what actually happened rather
+ * than a screen that quietly disagrees with their neighbour's.
+ *
+ * Nothing else is writable here. `completedAt` and `completedOn` are derived
+ * from `status` by the server: a client that could set them could record work
+ * as done on a day it was not, and the pair would drift apart.
+ */
+export const calendarTaskStatusSchema = z.object({
+  status: taskStatusSchema,
+  /** The version the client believes it is updating. */
+  version: z.number().int().min(1),
+});
+
+export type CalendarTaskStatusInput = z.infer<typeof calendarTaskStatusSchema>;
+
+/**
+ * One task as `/calendar/today` returns it: the stored task plus the name of
+ * the plot it is on, joined in the aggregation rather than fetched per task.
+ *
+ * The name and not the whole plot. A farmer reading "spray the upper field"
+ * needs to know which field; they do not need its boundary polygon, and
+ * shipping one per task would dwarf the response.
+ */
+export const calendarTodayTaskSchema = calendarTaskSchema.extend({
+  plotName: z.string(),
+});
+
+export type CalendarTodayTask = z.infer<typeof calendarTodayTaskSchema>;
+
+/**
+ * The three buckets `/calendar/today` answers with.
+ *
+ * Buckets rather than one sorted list, because the client renders three
+ * headings and would otherwise have to re-derive them from `dueDate` against a
+ * "today" it computed itself — which is the disagreement about what day it is
+ * that this whole module exists to prevent.
+ */
+export const calendarTodaySchema = z.object({
+  /** The day the buckets were computed against. Echoed so the client can tell. */
+  date: isoDateSchema,
+  /** Due before `date` and still pending. The most urgent thing a farmer owns. */
+  overdue: z.array(calendarTodayTaskSchema),
+  /** Due on `date`, whatever their status. */
+  today: z.array(calendarTodayTaskSchema),
+  /** Due in the seven days after `date` and still pending. */
+  next7: z.array(calendarTodayTaskSchema),
+});
+
+export type CalendarToday = z.infer<typeof calendarTodaySchema>;

@@ -13,6 +13,7 @@ import {
   patchTask,
   putTask,
 } from './calendar.controller';
+import { generateCalendar } from './calendarGeneration.controller';
 
 export const calendarRouter: Router = Router();
 
@@ -53,3 +54,22 @@ calendarRouter
  * an offline queue.
  */
 calendarRouter.route('/:id/complete').post(asyncHandler(completeTask));
+
+/**
+ * `POST /plots/:plotId/calendar/generate`, mounted by `plots.routes` rather
+ * than here.
+ *
+ * A router of its own, with `mergeParams`, because the route is addressed
+ * under `/plots` — the thing being generated is a *plot's* calendar, and the
+ * plot id belongs in the path that names the plot. `mergeParams` is what lets
+ * this router see `:plotId`, which was matched by its parent.
+ *
+ * It carries its own `authenticate`/`authorise` rather than relying on the
+ * parent's, so that mounting it somewhere else later cannot leave it
+ * unguarded by omission.
+ */
+export const plotCalendarRouter: Router = Router({ mergeParams: true });
+
+plotCalendarRouter.use(authenticate, authorise('farmer'));
+
+plotCalendarRouter.route('/generate').post(asyncHandler(generateCalendar));

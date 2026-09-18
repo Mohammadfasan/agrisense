@@ -1,4 +1,5 @@
-export { calendarRouter } from './calendar.routes';
+export { calendarRouter, plotCalendarRouter } from './calendar.routes';
+export { generateForPlot, type GenerateResult } from './calendarGeneration.service';
 export {
   complete,
   discardTasksForPlot,

@@ -1,4 +1,4 @@
-export { calendarRouter } from './calendar';
+export { calendarRouter, plotCalendarRouter } from './calendar';
 export { farmersRouter } from './farmers';
 export { healthRouter } from './health';
 export { plotsRouter } from './plots';
