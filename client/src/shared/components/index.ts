@@ -7,6 +7,7 @@ export { ChoiceGroup, type ChoiceGroupProps, type ChoiceOption } from './ChoiceG
 export { ConfirmDialog, type ConfirmDialogProps } from './ConfirmDialog';
 export { EmptyState, type EmptyStateProps } from './EmptyState';
 export { Input, type InputProps } from './Input';
+export { Skeleton, type SkeletonProps } from './Skeleton';
 export { Spinner, type SpinnerProps, type SpinnerSize } from './Spinner';
 export { Textarea, type TextareaProps } from './Textarea';
 export { ToastViewport } from './Toast';

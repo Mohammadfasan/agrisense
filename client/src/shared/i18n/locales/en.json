@@ -66,6 +66,17 @@
     },
     "profile": {
       "title": "My profile"
+    },
+    "today": {
+      "title": "Today",
+      "none": "Nothing due today.",
+      "next7_one": "{{count}} more in the next 7 days",
+      "next7_other": "{{count}} more in the next 7 days",
+      "empty": {
+        "title": "Nothing due",
+        "description": "Work appears here once a plot has its season planned.",
+        "action": "Plan a season"
+      }
     }
   },
   "auth": {
