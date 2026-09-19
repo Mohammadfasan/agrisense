@@ -326,7 +326,8 @@
       "gone": "This task is no longer there. It may have been deleted.",
       "validation": "Check the details and try again.",
       "generate": "Could not build the calendar. Check your connection and try again.",
-      "noPlan": "There is no planting plan for this crop yet. Please try again later."
+      "noPlan": "There is no planting plan for this crop yet. Please try again later.",
+      "elsewhere": "This task was updated elsewhere. Showing the latest."
     },
     "task": {
       "paddy": {

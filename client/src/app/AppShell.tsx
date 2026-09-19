@@ -3,6 +3,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NavLink, Outlet } from 'react-router-dom';
 
+import { ToastViewport } from '@/shared/components';
 import { cx } from '@/shared/utils/cx';
 
 import { ConnectivityStatus } from './ConnectivityStatus';
@@ -53,6 +54,10 @@ export function AppShell({ children }: { children?: ReactNode }): ReactElement {
 
         <BottomNav />
       </div>
+
+      {/* Mounted once, for the whole signed-in app: a rolled-back tick or a
+          failed sync has to be able to say so from wherever it happened. */}
+      <ToastViewport />
     </div>
   );
 }

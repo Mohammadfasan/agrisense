@@ -46,10 +46,14 @@ import { api, getApiErrorCode, getApiErrorDetails } from '@/shared/api/client';
  */
 export const calendarKeys = {
   all: ['calendar'] as const,
+  /** Every `/calendar/today` query, whatever day it asked about. */
+  todays: ['calendar', 'today'] as const,
   /** `/calendar/today`, keyed by the day the buckets were asked for. */
-  today: (date: IsoDate) => ['calendar', 'today', date] as const,
+  today: (date: IsoDate) => [...calendarKeys.todays, date] as const,
+  /** Every plot calendar query. */
+  plots: ['calendar', 'plot'] as const,
   /** One plot's whole calendar, completed work included. */
-  plot: (plotId: string) => ['calendar', 'plot', plotId] as const,
+  plot: (plotId: string) => [...calendarKeys.plots, plotId] as const,
 };
 
 /* -------------------------------------------------------------------------- */

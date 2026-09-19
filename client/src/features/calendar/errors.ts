@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next';
 
+import { VERSION_CONFLICT } from '@/api/calendar';
 import { getApiErrorCode } from '@/shared/api/client';
 
 /**
@@ -60,6 +61,26 @@ export function generateErrorMessage(cause: unknown, t: TFunction): string {
         'calendar.error.generate',
         'Could not build the calendar. Check your connection and try again.',
       );
+  }
+}
+
+/**
+ * For `PATCH /calendar/tasks/:id` -- ticking a task off, skipping it, undoing
+ * either.
+ *
+ * The conflict is the one worth its own sentence. Nothing failed and nothing
+ * was lost: the task was changed somewhere else, the screen has just been
+ * corrected to what it really says, and the farmer needs to know the row moved
+ * under them rather than that they mis-tapped.
+ */
+export function statusErrorMessage(cause: unknown, t: TFunction): string {
+  switch (getApiErrorCode(cause)) {
+    case VERSION_CONFLICT:
+      return t('calendar.error.elsewhere', 'This task was updated elsewhere. Showing the latest.');
+    case 'CALENDAR_TASK_NOT_FOUND':
+      return t('calendar.error.gone', 'This task is no longer there. It may have been deleted.');
+    default:
+      return t('calendar.error.complete', 'Could not update this task. Check your connection.');
   }
 }
 
