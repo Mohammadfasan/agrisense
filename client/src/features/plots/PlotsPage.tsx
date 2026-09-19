@@ -26,10 +26,11 @@ import { cropStage } from './progress';
  * a plot fixed above the thumb instead of at the top of a list that may be
  * scrolled away from.
  *
- * Tapping a card opens the edit form. There is no separate read-only detail
- * screen: everything a plot currently holds fits on the form, and a screen
- * whose only content is a row of values with an Edit button above them is one
- * tap of overhead per change.
+ * Tapping a card opens the plot, not the edit form. That changed with Day 12:
+ * a plot now has something to show that its form does not hold -- the season
+ * generated on it -- and building that season is a decision about the whole
+ * plot rather than a correction to one of its fields. Editing is one tap
+ * further in, from the plot's own screen.
  */
 export function PlotsPage(): ReactElement {
   const { t } = useTranslation();
@@ -166,7 +167,7 @@ function PlotCard({
     // browser or a screen reader can make sense of.
     <div className="flex flex-col overflow-hidden rounded-xl border border-muted-200 bg-white shadow-sm">
       <Link
-        to={`/plots/${plot._id}/edit`}
+        to={`/plots/${plot._id}`}
         className="flex items-center gap-3 p-4 transition-colors hover:bg-muted-50 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
       >
         <span className="flex min-w-0 flex-1 flex-col gap-1">

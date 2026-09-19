@@ -138,6 +138,17 @@ export const router = createBrowserRouter([
                 },
               },
               {
+                // The plot itself: what is growing, and the season planned on
+                // it. Its own chunk rather than part of the list screen --
+                // it pulls the generation sheet and the stage grouping with
+                // it, and `/plots` needs neither.
+                path: 'plots/:id',
+                lazy: async () => {
+                  const { PlotDetailPage } = await import('@/features/plots');
+                  return { Component: PlotDetailPage };
+                },
+              },
+              {
                 // `new` and `:id/edit` share one component. Order does not
                 // matter -- react-router ranks the static segment above the
                 // dynamic one however they are written.

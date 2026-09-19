@@ -36,6 +36,33 @@ export function saveErrorMessage(cause: unknown, t: TFunction): string {
   }
 }
 
+/**
+ * For `POST /plots/:plotId/calendar/generate`.
+ *
+ * `SERVICE_UNAVAILABLE` is the one worth telling apart. It means the server
+ * has no stage templates for this crop — an unseeded database rather than
+ * anything the farmer did — and the only useful thing to say is that it is not
+ * their doing and not their fix.
+ */
+export function generateErrorMessage(cause: unknown, t: TFunction): string {
+  switch (getApiErrorCode(cause)) {
+    case 'PLOT_NOT_FOUND':
+      return t('plot.error.gone', 'This plot is no longer there. It may have been deleted.');
+    case 'VALIDATION_ERROR':
+      return t('calendar.error.validation', 'Check the details and try again.');
+    case 'SERVICE_UNAVAILABLE':
+      return t(
+        'calendar.error.noPlan',
+        'There is no planting plan for this crop yet. Please try again later.',
+      );
+    default:
+      return t(
+        'calendar.error.generate',
+        'Could not build the calendar. Check your connection and try again.',
+      );
+  }
+}
+
 /** Completing and re-opening both go through here: one tap, one message. */
 export function completeErrorMessage(cause: unknown, t: TFunction): string {
   if (getApiErrorCode(cause) === 'CALENDAR_TASK_NOT_FOUND') {

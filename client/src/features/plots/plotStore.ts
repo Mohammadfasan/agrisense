@@ -1,4 +1,4 @@
-import { plotSchema, type PlotInput, type PlotRecord } from '@agrisense/shared';
+import { isoDateSchema, plotSchema, type PlotInput } from '@agrisense/shared';
 import { z } from 'zod';
 import { create } from 'zustand';
 
@@ -19,13 +19,38 @@ import { api, getApiErrorCode } from '@/shared/api/client';
  * then have to be reconciled with it.
  */
 
+/**
+ * A plot as this client reads one.
+ *
+ * `plotSchema` is the shape the server validates *writes* with, and Day 12
+ * added `sowingDate` to the record without adding it to the shared schema --
+ * nothing the client may send sets it, because it is written by
+ * `POST /plots/:plotId/calendar/generate` from what the farmer generated the
+ * calendar with. The API does send it, and Zod strips what a schema does not
+ * name, so parsing through `plotSchema` alone would quietly drop the one field
+ * the plot detail header exists to show.
+ *
+ * Widened here rather than in `@agrisense/shared`: this is the read shape, and
+ * the shared schema is what the server validates request bodies against.
+ * `nullish`, because the field is absent on a plot made before Day 12 and
+ * `null` on one whose calendar has never been generated.
+ */
+const plotRecordSchema = plotSchema.extend({ sowingDate: isoDateSchema.nullish() });
+
+/**
+ * Structurally the shared `PlotRecord` with one field more, so everything
+ * already typed against that -- the form, the cards, `cropStage` -- takes one
+ * of these unchanged.
+ */
+export type Plot = z.infer<typeof plotRecordSchema>;
+
 /** What the API returns, checked against the schema the server validated with. */
 const plotListResponseSchema = z.object({
-  plots: z.array(plotSchema),
+  plots: z.array(plotRecordSchema),
   nextCursor: z.string().nullable(),
 });
 
-const plotResponseSchema = z.object({ plot: plotSchema });
+const plotResponseSchema = z.object({ plot: plotRecordSchema });
 
 /**
  * How the list load went. `idle` is "nobody has asked yet", and it is what
@@ -36,7 +61,7 @@ export type PlotListStatus = 'idle' | 'loading' | 'ready' | 'error';
 
 interface PlotState {
   /** Newest first, in the server's own order. See {@link mergePlot}. */
-  plots: PlotRecord[];
+  plots: Plot[];
   status: PlotListStatus;
   /**
    * The API's error code for a failed load, or `UNKNOWN` when the request
@@ -65,9 +90,9 @@ interface PlotState {
    * Creates a plot under an id minted here, before the request goes out.
    * Rejects with the API's error.
    */
-  createPlot: (input: PlotInput) => Promise<PlotRecord>;
+  createPlot: (input: PlotInput) => Promise<Plot>;
   /** `PUT` — creates or replaces the whole plot. Rejects with the API's error. */
-  savePlot: (id: string, input: PlotInput) => Promise<PlotRecord>;
+  savePlot: (id: string, input: PlotInput) => Promise<Plot>;
   /** Soft-deletes on the server and drops it here. Rejects with the API's error. */
   deletePlot: (id: string) => Promise<void>;
   /** Back to `idle`, with nothing loaded. */
@@ -181,14 +206,14 @@ async function getPage(cursor: string | null): Promise<z.infer<typeof plotListRe
  * not, and dropping that at the front would put the list in an order the next
  * page cursor disagrees with.
  */
-function mergePlot(plots: readonly PlotRecord[], plot: PlotRecord): PlotRecord[] {
+function mergePlot(plots: readonly Plot[], plot: Plot): Plot[] {
   const rest = plots.filter((existing) => existing._id !== plot._id);
   const index = rest.findIndex((existing) => sortsBefore(plot, existing));
   const at = index === -1 ? rest.length : index;
   return [...rest.slice(0, at), plot, ...rest.slice(at)];
 }
 
-function sortsBefore(a: PlotRecord, b: PlotRecord): boolean {
+function sortsBefore(a: Plot, b: Plot): boolean {
   const difference = a.updatedAt.getTime() - b.updatedAt.getTime();
   return difference === 0 ? a._id > b._id : difference > 0;
 }

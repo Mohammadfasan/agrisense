@@ -246,6 +246,11 @@
       "delete": "Could not delete this plot. Check your connection.",
       "gone": "This plot is no longer there. It may have been deleted.",
       "validation": "Check the details and try again."
+    },
+    "editAction": "Edit",
+    "sowing": {
+      "none": "Sowing date not set",
+      "on": "Sown {{date}}"
     }
   },
   "calendar": {
@@ -319,7 +324,9 @@
       "delete": "Could not delete this task. Check your connection.",
       "complete": "Could not update this task. Check your connection.",
       "gone": "This task is no longer there. It may have been deleted.",
-      "validation": "Check the details and try again."
+      "validation": "Check the details and try again.",
+      "generate": "Could not build the calendar. Check your connection and try again.",
+      "noPlan": "There is no planting plan for this crop yet. Please try again later."
     },
     "task": {
       "paddy": {
@@ -531,6 +538,47 @@
           "title": "Last picking",
           "description": "Take the last of the fruit and clear the plants."
         }
+      }
+    },
+    "growthStage": {
+      "establishment": "Establishment",
+      "tillering": "Tillering",
+      "vegetative": "Vegetative growth",
+      "panicleInitiation": "Panicle initiation",
+      "flowering": "Flowering",
+      "fruiting": "Fruiting",
+      "bulbInitiation": "Bulb initiation",
+      "bulbDevelopment": "Bulb development",
+      "ripening": "Ripening",
+      "maturity": "Maturity",
+      "harvest": "Harvest",
+      "other": "Other tasks",
+      "now": "Now"
+    },
+    "stageAllDone": "All done",
+    "stageLeft_one": "{{count}} left",
+    "stageLeft_other": "{{count}} left",
+    "overdueCount_one": "{{count}} overdue",
+    "overdueCount_other": "{{count}} overdue",
+    "openFull": "Open the calendar",
+    "status": {
+      "done": "Done",
+      "skipped": "Skipped"
+    },
+    "generate": {
+      "title": "Build the calendar",
+      "rebuildTitle": "Build the calendar again",
+      "description": "The work for the whole season is worked out from the day the crop goes in.",
+      "field": "Which day was it sown?",
+      "invalid": "Choose the day the crop was sown.",
+      "action": "Build calendar",
+      "rebuildAction": "Build calendar again",
+      "empty": "Tell us the day this crop was sown and the whole season is planned out for you.",
+      "confirm": {
+        "title": "Build this calendar again?",
+        "description": "Work you have already done, skipped or changed is kept. Only tasks still waiting, exactly as they were planned, are replaced.",
+        "confirm": "Build again",
+        "cancel": "Keep this calendar"
       }
     }
   }
