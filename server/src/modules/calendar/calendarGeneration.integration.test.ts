@@ -3,7 +3,13 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { CalendarTaskModel, PlotModel, type CalendarTask, type Plot } from '@models';
+import {
+  CalendarTaskModel,
+  CropStageTemplateModel,
+  PlotModel,
+  type CalendarTask,
+  type Plot,
+} from '@models';
 
 import { createApp } from '../../app';
 import { seedCropStageTemplates } from '../../seed/cropStageTemplates';
@@ -378,6 +384,75 @@ describe('POST /plots/:plotId/calendar/generate', () => {
       expect(survivor?.deletedAt).toBeNull();
       expect(survivor?.isUserEdited).toBe(true);
       expect(survivor?.dueDate).toBe('2026-06-01');
+    });
+  });
+
+  /**
+   * The crop has no plan to build from.
+   *
+   * Found by reading the coverage report rather than by reasoning about the
+   * endpoint: every other case here seeds the templates first, so the branch
+   * that answers when they are missing had never run. It is not a hypothetical
+   * -- a deployment where `seed:templates` was not run reaches it on the first
+   * farmer, and the difference between this and an empty calendar is the
+   * difference between an operator fixing it in a minute and a farmer
+   * concluding the app does not work for their crop.
+   */
+  describe('when the crop has no stage templates', () => {
+    it('answers 503 with the code and the hint, rather than an empty calendar', async () => {
+      const actor = await seedFarmer();
+      const plotId = await createPlot(actor);
+      await CropStageTemplateModel.deleteMany({ cropId: PLOT.crop }).exec();
+
+      const response = await generate(actor.token, plotId, {
+        sowingDate: SOWN,
+        generationBatchId: randomUUID(),
+      });
+
+      // A `201` with no tasks would be indistinguishable from a crop with
+      // nothing to do in it, and nobody would go looking.
+      expect(response.status).toBe(503);
+      expect(body<ErrorBody>(response).error.code).toBe('SERVICE_UNAVAILABLE');
+      expect(
+        body<{ error: { details?: { crop?: string; hint?: string } } }>(response).error.details,
+      ).toEqual({ crop: PLOT.crop, hint: 'run the seed:templates script' });
+    });
+
+    it('treats a deactivated crop the same as an unseeded one', async () => {
+      const actor = await seedFarmer();
+      const plotId = await createPlot(actor);
+      // `isActive: false` is how a crop is retired without losing the rows
+      // that explain last season's calendar. It must not generate from them.
+      await CropStageTemplateModel.updateMany(
+        { cropId: PLOT.crop },
+        { $set: { isActive: false } },
+      ).exec();
+
+      const response = await generate(actor.token, plotId, {
+        sowingDate: SOWN,
+        generationBatchId: randomUUID(),
+      });
+
+      expect(response.status).toBe(503);
+    });
+
+    it('writes nothing, not even the sowing date, when it cannot build', async () => {
+      const actor = await seedFarmer();
+      const plotId = await createPlot(actor);
+      await CropStageTemplateModel.deleteMany({ cropId: PLOT.crop }).exec();
+
+      await generate(actor.token, plotId, {
+        sowingDate: SOWN,
+        generationBatchId: randomUUID(),
+      });
+
+      // The sowing date and the calendar it produced are one fact -- see the
+      // transaction in `generateForPlot`. A plot left holding a sowing date
+      // with no calendar behind it is the state nothing can explain
+      // afterwards, and the throw happens before the transaction opens.
+      const plot = await PlotModel.findById(plotId).lean<Plot>().exec();
+      expect(plot?.sowingDate ?? null).toBeNull();
+      expect(await liveTasks(plotId)).toHaveLength(0);
     });
   });
 

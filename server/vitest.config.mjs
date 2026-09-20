@@ -19,6 +19,26 @@ export default defineConfig({
     // Downloading and booting mongod on a cold cache is slow.
     hookTimeout: 180_000,
     testTimeout: 30_000,
+    coverage: {
+      provider: 'v8',
+      // `text` for the terminal, `lcov` for whatever reads it in CI later.
+      reporter: ['text', 'lcov'],
+      reportsDirectory: './coverage',
+      // Files no test touches still count. Without `all` an untested module
+      // reports nothing rather than reporting zero, and zero is the one
+      // number worth seeing.
+      all: true,
+      include: ['src/**/*.ts'],
+      exclude: [
+        'src/**/*.test.ts',
+        // The harness itself: measuring the tests' own helpers says nothing
+        // about the code under test.
+        'src/test/**',
+        // Types and re-exports; nothing to execute.
+        'src/**/*.d.ts',
+        'src/**/index.ts',
+      ],
+    },
     env: {
       NODE_ENV: 'test',
       LOG_LEVEL: 'error',
