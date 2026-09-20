@@ -3,7 +3,12 @@
     "loading": "Loading",
     "retry": "Try again",
     "comingSoon": "Coming soon",
-    "close": "Close"
+    "close": "Close",
+    "error": {
+      "title": "Could not load",
+      "offlineTitle": "You are offline",
+      "offline": "This will load as soon as you have a signal. Anything you have already saved is still here."
+    }
   },
   "currency": {
     "symbol": "Rs.",
@@ -256,7 +261,8 @@
       "save": "Could not save this plot. Check your connection.",
       "delete": "Could not delete this plot. Check your connection.",
       "gone": "This plot is no longer there. It may have been deleted.",
-      "validation": "Check the details and try again."
+      "validation": "Check the details and try again.",
+      "loadShort": "This plot could not be loaded."
     },
     "editAction": "Edit",
     "sowing": {
@@ -338,7 +344,8 @@
       "validation": "Check the details and try again.",
       "generate": "Could not build the calendar. Check your connection and try again.",
       "noPlan": "There is no planting plan for this crop yet. Please try again later.",
-      "elsewhere": "This task was updated elsewhere. Showing the latest."
+      "elsewhere": "This task was updated elsewhere. Showing the latest.",
+      "loadShort": "Your tasks could not be loaded."
     },
     "task": {
       "paddy": {

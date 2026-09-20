@@ -6,6 +6,7 @@ export { Card, type CardPadding, type CardProps } from './Card';
 export { ChoiceGroup, type ChoiceGroupProps, type ChoiceOption } from './ChoiceGroup';
 export { ConfirmDialog, type ConfirmDialogProps } from './ConfirmDialog';
 export { EmptyState, type EmptyStateProps } from './EmptyState';
+export { ErrorState, type ErrorStateProps } from './ErrorState';
 export { Input, type InputProps } from './Input';
 export { Skeleton, type SkeletonProps } from './Skeleton';
 export { Spinner, type SpinnerProps, type SpinnerSize } from './Spinner';

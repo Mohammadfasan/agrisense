@@ -19,7 +19,7 @@ import {
   type StageGroup,
   type StageKey,
 } from '@/features/calendar/stages';
-import { Button, ConfirmDialog, EmptyState, Spinner } from '@/shared/components';
+import { Button, ConfirmDialog, EmptyState, ErrorState, Spinner } from '@/shared/components';
 import { formatDay, formatDayRelative, todayIso } from '@/shared/i18n/dates';
 import { cx } from '@/shared/utils/cx';
 
@@ -97,22 +97,17 @@ function PlotDetail({ plotId }: { plotId: string }): ReactElement {
     }
     if (state === 'error') {
       return (
-        <section className="flex flex-col items-center gap-3 py-10 text-center">
-          <p role="alert" className="text-sm font-medium text-danger-700">
-            {t('plot.error.load', 'Your plots could not be loaded. Check your connection.')}
-          </p>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setState('loading');
-            }}
-          >
-            {t('common.retry', 'Try again')}
-          </Button>
-          <Link to="/plots" className="btn-secondary">
-            {t('plot.backToList', 'Back to my plots')}
-          </Link>
-        </section>
+        <ErrorState
+          description={t('plot.error.loadShort', 'This plot could not be loaded.')}
+          onRetry={() => {
+            setState('loading');
+          }}
+          action={
+            <Link to="/plots" className="btn-secondary min-h-touch-md px-5">
+              {t('plot.backToList', 'Back to my plots')}
+            </Link>
+          }
+        />
       );
     }
     return (
@@ -228,11 +223,22 @@ function PlotSeason({ plot }: { plot: Plot }): ReactElement {
 
   const hasCalendar = (tasks.data ?? []).length > 0;
 
+  // Whether this plot already has a season is only known once the read has
+  // actually succeeded. It matters for more than the label: with the read
+  // failed, `tasks.data` is undefined and `hasCalendar` reads false, so the
+  // button would say "Build calendar" for a plot that has one and go straight
+  // past the confirmation — the farmer would be rebuilding a plan without
+  // being asked, on the one screen where being asked is the point. Offer the
+  // action only once the answer is in; the failure below is what offers the
+  // way forward until then.
+  const isCalendarKnown = tasks.isSuccess;
+
   return (
     <>
       <Button
         className="min-h-touch-lg w-full text-base"
         variant={hasCalendar ? 'secondary' : 'primary'}
+        disabled={!isCalendarKnown}
         onClick={() => {
           if (hasCalendar) {
             setIsConfirming(true);
@@ -286,19 +292,12 @@ function PlotSeason({ plot }: { plot: Plot }): ReactElement {
       )}
 
       {tasks.isError && (
-        <div className="flex flex-col items-center gap-3 py-10 text-center">
-          <p role="alert" className="text-sm font-medium text-danger-700">
-            {t('calendar.error.load', 'Your tasks could not be loaded. Check your connection.')}
-          </p>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              void tasks.refetch();
-            }}
-          >
-            {t('common.retry', 'Try again')}
-          </Button>
-        </div>
+        <ErrorState
+          description={t('calendar.error.loadShort', 'Your tasks could not be loaded.')}
+          onRetry={() => {
+            void tasks.refetch();
+          }}
+        />
       )}
 
       {tasks.isSuccess && !hasCalendar && (

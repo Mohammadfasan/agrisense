@@ -12,7 +12,7 @@ import { calendarKeys, fetchToday } from '@/api/calendar';
 import { ACTIVITY_META, taskTitle } from '@/features/calendar/activity';
 import { usePlotStore } from '@/features/plots/plotStore';
 import { useTaskMutation } from '@/hooks/useTaskMutation';
-import { EmptyState, Skeleton } from '@/shared/components';
+import { EmptyState, ErrorState, Skeleton } from '@/shared/components';
 import { formatDayRelative, todayIso } from '@/shared/i18n/dates';
 import { cx } from '@/shared/utils/cx';
 
@@ -92,10 +92,17 @@ export function TodayCard(): ReactElement {
 
       {buckets.isPending && <TodaySkeleton />}
 
-      {buckets.isError && (
-        <p role="alert" className="px-4 pb-4 text-sm font-medium text-danger-700">
-          {t('calendar.error.load', 'Your tasks could not be loaded. Check your connection.')}
-        </p>
+      {/* Only when there is nothing to show. A refetch that fails while the
+          card is already holding yesterday's answer leaves the rows up: stale
+          work is still the farmer's work, and replacing it with an error would
+          take the screen away to report that it could not be refreshed. */}
+      {buckets.isError && data === undefined && (
+        <ErrorState
+          description={t('calendar.error.loadShort', 'Your tasks could not be loaded.')}
+          onRetry={() => {
+            void buckets.refetch();
+          }}
+        />
       )}
 
       {isEmpty && <TodayEmpty firstPlotId={plots[0]?._id} />}
