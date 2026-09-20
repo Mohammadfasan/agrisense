@@ -88,12 +88,80 @@ describe('addDays', () => {
     });
   });
 
+  /**
+   * Going backwards, over the same boundaries as above.
+   *
+   * Subtraction has its own tests rather than being taken on trust from the
+   * forward cases, because the two are not the same code path anywhere it
+   * matters: a month's length is read from the month you land in, not the one
+   * you left, so `-1` from 1 March and `+1` from 28 February disagree about
+   * February in exactly the years this app plants a crop across it. The
+   * generator subtracts too -- `offsetDays` is signed, and a stage that starts
+   * before sowing is written as a negative offset.
+   */
+  describe('negative offsets', () => {
+    it('lands on 29 February going backwards in a leap year', () => {
+      expect(addDays('2028-03-01', -1)).toBe('2028-02-29');
+    });
+
+    it('steps back over 29 February onto the 28th', () => {
+      expect(addDays('2028-03-01', -2)).toBe('2028-02-28');
+    });
+
+    it('lands on 28 February going backwards in a common year', () => {
+      // The same step as the first case in a year with no 29th. An
+      // implementation that assumed February's length would answer the same
+      // day for both.
+      expect(addDays('2027-03-01', -1)).toBe('2027-02-28');
+    });
+
+    it('steps back into a 31-day month', () => {
+      expect(addDays('2026-06-01', -1)).toBe('2026-05-31');
+    });
+
+    it('skips whole months backwards', () => {
+      // The forward season, run in reverse: harvest on day 115 back to sowing.
+      expect(addDays('2026-08-24', -115)).toBe('2026-05-01');
+    });
+
+    it('crosses a year end backwards over a long span', () => {
+      expect(addDays('2027-03-15', -120)).toBe('2026-11-15');
+    });
+
+    it('crosses backwards over a century that is not a leap year', () => {
+      expect(addDays('2100-03-01', -1)).toBe('2100-02-28');
+    });
+
+    it('crosses backwards over a century that is', () => {
+      expect(addDays('2000-03-01', -1)).toBe('2000-02-29');
+    });
+
+    it('is the exact inverse of the forward step', () => {
+      // Over a span holding a leap day, a century rule and two year ends, so
+      // an off-by-one in either direction shows up here.
+      const span = 2000;
+      expect(addDays(addDays('2026-05-01', span), -span)).toBe('2026-05-01');
+    });
+  });
+
   it('rejects a day that does not exist', () => {
     expect(() => addDays('2026-02-30', 1)).toThrow(RangeError);
   });
 
   it('rejects a fractional offset', () => {
     expect(() => addDays('2026-06-10', 1.5)).toThrow(RangeError);
+  });
+
+  it('rejects a fractional negative offset, like the positive one', () => {
+    expect(() => addDays('2026-06-10', -1.5)).toThrow(RangeError);
+  });
+
+  it('rejects an offset that is not a number at all', () => {
+    // `NaN` and `Infinity` both fail `Number.isInteger`, and both would
+    // otherwise produce an `Invalid Date` and throw somewhere less useful.
+    expect(() => addDays('2026-06-10', Number.NaN)).toThrow(RangeError);
+    expect(() => addDays('2026-06-10', Number.POSITIVE_INFINITY)).toThrow(RangeError);
+    expect(() => addDays('2026-06-10', Number.NEGATIVE_INFINITY)).toThrow(RangeError);
   });
 });
 
