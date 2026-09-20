@@ -21,6 +21,9 @@ app/
 └── schemas/    Pydantic request/response models.
 models/         Per-type manifests and version directories.
 training/       Offline pipelines. Never imported by the service.
+scripts/        Dataset tooling. Offline, and not imported either.
+data/           The corpus and its split. No images in git; see data/README.md.
+reports/        Generated figures and inspection output. Not in git.
 ```
 
 ## Endpoints
@@ -59,6 +62,35 @@ process working directory, so the service behaves the same started from
 The container runs **3.11** (`Dockerfile`, and `requires-python = ">=3.11"`).
 Only 3.12 is installed on this machine, so the local `.venv` is 3.12 — black and
 ruff both target `py311`, which keeps 3.12-only syntax from creeping in.
+
+## Dataset preparation
+
+The classifier's corpus lives in `data/`, one directory per class. **Nothing in
+this repo downloads it** -- the source and its licence are the operator's
+decision -- and nothing here trains. `data/README.md` has the layout, what is
+tracked and why, and the caveat about re-splitting a corpus that has grown.
+
+```bash
+npm run data:inspect                   # look before you split
+npm run data:prepare -- --dry-run      # counts and warnings, writes nothing
+npm run data:prepare                   # split, resize, write the manifest
+```
+
+`scripts/inspect_dataset.py` reports the class distribution (with a bar chart to
+`reports/class_distribution.png`), mean and median image size, files that will
+not decode, and byte-identical duplicates. Duplicates spanning two classes are
+called out separately: those are a labelling conflict rather than a duplicate.
+
+`scripts/prepare_dataset.py` splits each class 70/15/15 from a fixed seed,
+resizes to 224x224 RGB JPEG and writes `data/manifest.json` -- the seed, the
+ratios and the per-class counts that a reported accuracy is checked against.
+It flags any class under 100 images as a risk and carries on; it refuses to
+overwrite a previous run without `--force`, because a directory holding two
+seeds' output is a split nobody can reason about afterwards.
+
+Both take `--help`. `matplotlib` is in `requirements-dev.txt` and not in
+`requirements.txt`: the inference image has no use for a plotting stack, and
+`inspect_dataset.py` runs without it, skipping only the chart.
 
 ## Tooling
 

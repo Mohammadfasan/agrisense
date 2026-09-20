@@ -43,6 +43,23 @@ ml-service/models/**/*.pkl
 ml-service/models/**/*.pt
 ml-service/models/**/*.h5
 
+# datasets - images never go in git. The corpus is large, it is redistributed
+# under its source's licence rather than ours, and `processed/` is derived
+# output that `scripts/prepare_dataset.py` rebuilds from `raw/` on demand.
+# The empty trees are kept so a clone has somewhere to put a download.
+ml-service/data/raw/*
+!ml-service/data/raw/.gitkeep
+ml-service/data/processed/*/*
+!ml-service/data/processed/*/.gitkeep
+
+# ...but `data/manifest.json` IS tracked, deliberately. It is the record of
+# which split produced a given model -- counts, seed and ratios -- and a thesis
+# that cites those numbers needs them under version control, not regenerated.
+
+# generated figures and inspection output
+ml-service/reports/*
+!ml-service/reports/.gitkeep
+
 # vite / pwa
 client/dev-dist/
 

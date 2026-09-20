@@ -7,3 +7,8 @@ __pycache__/
 tests/
 training/
 models/*/v*/
+# Offline only, and `data/` is the whole corpus -- it would be sent to the
+# daemon as build context on every build and baked into the layer.
+scripts/
+data/
+reports/

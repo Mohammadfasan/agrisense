@@ -2,7 +2,7 @@
   "name": "agrisense",
   "version": "0.1.0",
   "private": true,
-  "description": "AgriSense \u2014 precision agriculture platform (monorepo)",
+  "description": "AgriSense — precision agriculture platform (monorepo)",
   "workspaces": [
     "packages/shared",
     "server",
@@ -31,7 +31,9 @@
     "lint:py": "node scripts/py-tool.mjs ruff check ml-service",
     "format:py": "node scripts/py-tool.mjs black ml-service",
     "test:py": "node scripts/py-tool.mjs pytest ml-service",
-    "dev:ml": "node scripts/py-tool.mjs uvicorn --app-dir ml-service app.main:app --reload --port 8000"
+    "dev:ml": "node scripts/py-tool.mjs uvicorn --app-dir ml-service app.main:app --reload --port 8000",
+    "data:inspect": "node scripts/py-tool.mjs python ml-service/scripts/inspect_dataset.py",
+    "data:prepare": "node scripts/py-tool.mjs python ml-service/scripts/prepare_dataset.py"
   },
   "lint-staged": {
     "*.{ts,tsx,js,cjs,mjs}": [
