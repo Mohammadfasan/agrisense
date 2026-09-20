@@ -178,6 +178,50 @@ describe('GET /calendar/today', () => {
     ]);
   });
 
+  /**
+   * The three buckets at once, over two plots.
+   *
+   * The tests above each pin one boundary on one plot. This one is the
+   * combination they do not cover: a farmer with land in two places, work
+   * scattered either side of today, and a task due *exactly* today on each —
+   * the day that is a boundary for both `overdue` and `next7` and belongs to
+   * neither. A join that bucketed per plot, or an inclusive comparison in the
+   * wrong direction, passes every test above and fails this one.
+   */
+  it('buckets across two plots, with a task due exactly today on each', async () => {
+    const actor = await seedFarmer();
+    const upper = await createPlot(actor, 'Upper field');
+    const lower = await createPlot(actor, 'Lower field');
+
+    await addTask(actor, upper, '2026-06-03'); // overdue, a week ago
+    await addTask(actor, upper, TODAY); // exactly today
+    await addTask(actor, upper, '2026-06-17'); // the seventh day
+
+    await addTask(actor, lower, '2026-06-09'); // overdue, yesterday
+    await addTask(actor, lower, TODAY); // exactly today
+    await addTask(actor, lower, '2026-06-11'); // tomorrow
+
+    const buckets = body<TodayBody>(await getToday(actor.token, TODAY));
+
+    expect(buckets.date).toBe(TODAY);
+    expect(buckets.overdue.map((task) => task.dueDate)).toEqual(['2026-06-03', '2026-06-09']);
+    expect(buckets.next7.map((task) => task.dueDate)).toEqual(['2026-06-11', '2026-06-17']);
+
+    // Today's two, one from each plot, and neither of them counted again in a
+    // neighbouring bucket.
+    expect(buckets.today).toHaveLength(2);
+    expect(buckets.today.every((task) => task.dueDate === TODAY)).toBe(true);
+    expect(buckets.today.map((task) => task.plotName).sort()).toEqual([
+      'Lower field',
+      'Upper field',
+    ]);
+
+    // Six tasks in, six tasks out: nothing is in two buckets and nothing was
+    // dropped between them.
+    const ids = [...buckets.overdue, ...buckets.today, ...buckets.next7].map((task) => task._id);
+    expect(new Set(ids).size).toBe(6);
+  });
+
   describe('bucket boundaries', () => {
     it('keeps an overdue task however old it is', async () => {
       const actor = await seedFarmer();

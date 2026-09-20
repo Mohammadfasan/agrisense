@@ -197,6 +197,35 @@ describe('POST /plots/:plotId/calendar/generate', () => {
       expect(await liveTasks(plotId)).toHaveLength(body<GenerateBody>(third).tasks.length);
     });
 
+    /**
+     * The replay writes nothing at all, tombstones included.
+     *
+     * The test above counts the *live* rows, which a run that inserted a
+     * second set and then superseded the first would also pass — the farmer
+     * would see one calendar and the collection would hold two. Counting every
+     * document for the plot, deleted or not, is what distinguishes "did not
+     * duplicate" from "duplicated and tidied up after itself".
+     */
+    it('writes no documents at all on a replay', async () => {
+      const actor = await seedFarmer();
+      const plotId = await createPlot(actor);
+      const payload = { sowingDate: SOWN, generationBatchId: randomUUID() };
+
+      const first = await generate(actor.token, plotId, payload);
+      const afterFirst = await CalendarTaskModel.countDocuments({ plotId }).exec();
+
+      await generate(actor.token, plotId, payload);
+      await generate(actor.token, plotId, payload);
+
+      expect(afterFirst).toBe(body<GenerateBody>(first).tasks.length);
+      // Every document, deleted or not. A replay that inserted and then
+      // superseded would leave this higher while `liveTasks` stayed right.
+      expect(await CalendarTaskModel.countDocuments({ plotId }).exec()).toBe(afterFirst);
+      expect(
+        await CalendarTaskModel.countDocuments({ plotId, deletedAt: { $ne: null } }).exec(),
+      ).toBe(0);
+    });
+
     it('rebuilds under a new batch id and tombstones the old one', async () => {
       const actor = await seedFarmer();
       const plotId = await createPlot(actor);
