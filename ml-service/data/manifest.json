@@ -1,0 +1,78 @@
+{
+  "seed": 42,
+  "ratios": {
+    "train": 0.7,
+    "val": 0.15,
+    "test": 0.15
+  },
+  "resize_to": 256,
+  "total_images": 5027,
+  "per_split": {
+    "train": 3519,
+    "val": 755,
+    "test": 753
+  },
+  "per_class": {
+    "maize_common_rust": {
+      "train": 167,
+      "val": 36,
+      "test": 36
+    },
+    "maize_healthy": {
+      "train": 163,
+      "val": 35,
+      "test": 35
+    },
+    "pepper_bacterial_spot": {
+      "train": 140,
+      "val": 30,
+      "test": 30
+    },
+    "pepper_healthy": {
+      "train": 207,
+      "val": 44,
+      "test": 44
+    },
+    "potato_early_blight": {
+      "train": 140,
+      "val": 30,
+      "test": 30
+    },
+    "potato_healthy": {
+      "train": 22,
+      "val": 5,
+      "test": 4
+    },
+    "potato_late_blight": {
+      "train": 140,
+      "val": 30,
+      "test": 30
+    },
+    "rice_brown_spot": {
+      "train": 675,
+      "val": 145,
+      "test": 145
+    },
+    "rice_healthy": {
+      "train": 1235,
+      "val": 265,
+      "test": 264
+    },
+    "tomato_early_blight": {
+      "train": 140,
+      "val": 30,
+      "test": 30
+    },
+    "tomato_healthy": {
+      "train": 222,
+      "val": 48,
+      "test": 48
+    },
+    "tomato_late_blight": {
+      "train": 268,
+      "val": 57,
+      "test": 57
+    }
+  },
+  "manifest_sha256": "b35b34b9f037507efc4f47b1f4b6362e498a767f7cb1baac0516971645c1b457"
+}

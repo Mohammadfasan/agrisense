@@ -1,0 +1,87 @@
+# Single source of truth for disease classes.
+# The model outputs an id (0-11). Never reorder after training.
+
+classes:
+  - id: 0
+    key: maize_common_rust
+    crop: maize
+    is_healthy: false
+    source: plantvillage
+    display: { en: "Maize – Common rust", ta: "TODO", si: "TODO" }
+
+  - id: 1
+    key: maize_healthy
+    crop: maize
+    is_healthy: true
+    source: plantvillage
+    display: { en: "Maize – Healthy", ta: "TODO", si: "TODO" }
+
+  - id: 2
+    key: pepper_bacterial_spot
+    crop: pepper
+    is_healthy: false
+    source: plantvillage
+    display: { en: "Pepper – Bacterial spot", ta: "TODO", si: "TODO" }
+
+  - id: 3
+    key: pepper_healthy
+    crop: pepper
+    is_healthy: true
+    source: plantvillage
+    display: { en: "Pepper – Healthy", ta: "TODO", si: "TODO" }
+
+  - id: 4
+    key: potato_early_blight
+    crop: potato
+    is_healthy: false
+    source: plantvillage
+    display: { en: "Potato – Early blight", ta: "TODO", si: "TODO" }
+
+  - id: 5
+    key: potato_healthy
+    crop: potato
+    is_healthy: true
+    source: plantvillage
+    display: { en: "Potato – Healthy", ta: "TODO", si: "TODO" }
+
+  - id: 6
+    key: potato_late_blight
+    crop: potato
+    is_healthy: false
+    source: plantvillage
+    display: { en: "Potato – Late blight", ta: "TODO", si: "TODO" }
+
+  - id: 7
+    key: rice_brown_spot
+    crop: rice
+    is_healthy: false
+    source: paddy_doctor
+    display: { en: "Rice – Brown spot", ta: "TODO", si: "TODO" }
+
+  - id: 8
+    key: rice_healthy
+    crop: rice
+    is_healthy: true
+    source: paddy_doctor
+    display: { en: "Rice – Healthy", ta: "TODO", si: "TODO" }
+
+  - id: 9
+    key: tomato_early_blight
+    crop: tomato
+    is_healthy: false
+    source: plantvillage
+    display: { en: "Tomato – Early blight", ta: "TODO", si: "TODO" }
+
+  - id: 10
+    key: tomato_healthy
+    crop: tomato
+    is_healthy: true
+    source: plantvillage
+    display: { en: "Tomato – Healthy", ta: "TODO", si: "TODO" }
+
+  - id: 11
+    key: tomato_late_blight
+    crop: tomato
+    is_healthy: false
+    source: plantvillage
+    display: { en: "Tomato – Late blight", ta: "TODO", si: "TODO" }
