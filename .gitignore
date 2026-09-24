@@ -68,3 +68,5 @@ client/dev-dist/
 
 # vite temp config artifacts
 vite.config.ts.timestamp-*
+
+ml-service/artifacts/
