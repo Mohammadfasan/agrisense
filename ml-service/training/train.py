@@ -1,4 +1,8 @@
-"""Train the MobileNetV2 baseline: frozen backbone, new 12-class head."""
+"""Train MobileNetV2 for AgriSense.
+
+Stage 1 (baseline): frozen backbone, train only the new 12-class head.
+Stage 2 (fine-tune): start from the baseline, unfreeze the last N backbone blocks.
+"""
 
 from __future__ import annotations
 
@@ -15,7 +19,12 @@ from torch import nn
 
 from app.core.classes import load_classes
 from training.data import IMAGENET_MEAN, IMAGENET_STD, IMG_SIZE, build_loaders
-from training.model import build_model, count_params, keep_frozen_bn_in_eval
+from training.model import (
+    build_model,
+    count_params,
+    keep_frozen_bn_in_eval,
+    unfreeze_last_blocks,
+)
 
 
 def set_seed(seed: int) -> None:
@@ -38,7 +47,7 @@ def train_one_epoch(model, loader, criterion, optimizer, device, limit=None):
         logits = model(images)  # 2. forward pass
         loss = criterion(logits, labels)  # 3. measure the error
         loss.backward()  # 4. compute gradients
-        optimizer.step()  # 5. update the head's weights
+        optimizer.step()  # 5. update the weights
 
         total_loss += loss.item() * labels.size(0)
         correct += (logits.argmax(1) == labels).sum().item()
@@ -72,13 +81,33 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--data-root", type=Path, default=Path("data/processed"))
     parser.add_argument("--out-dir", type=Path, default=Path("artifacts"))
+    parser.add_argument("--run-name", default="baseline")
     parser.add_argument("--epochs", type=int, default=15)
-    parser.add_argument("--lr", type=float, default=1e-3)
+    parser.add_argument("--lr", type=float, default=1e-3, help="LR for the head")
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--num-workers", type=int, default=2)
     parser.add_argument("--patience", type=int, default=4)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--limit-batches", type=int, default=None, help="smoke test only")
+    # Fine-tuning options
+    parser.add_argument(
+        "--init-checkpoint",
+        type=Path,
+        default=None,
+        help="start from these weights (e.g. the baseline)",
+    )
+    parser.add_argument(
+        "--unfreeze-blocks",
+        type=int,
+        default=0,
+        help="0 = frozen backbone; N = also train the last N backbone blocks",
+    )
+    parser.add_argument(
+        "--backbone-lr",
+        type=float,
+        default=None,
+        help="LR for unfrozen backbone blocks (default: lr / 10)",
+    )
     args = parser.parse_args()
 
     set_seed(args.seed)
@@ -88,17 +117,38 @@ def main() -> None:
     keys = [c.key for c in load_classes()]
     loaders = build_loaders(args.data_root, keys, args.batch_size, args.num_workers, args.seed)
 
-    model = build_model(num_classes=len(keys)).to(device)
+    # Build the model, optionally load baseline weights, optionally unfreeze blocks
+    model = build_model(num_classes=len(keys))
+    if args.init_checkpoint is not None:
+        ckpt = torch.load(args.init_checkpoint, map_location="cpu")
+        if ckpt["class_names"] != keys:
+            raise SystemExit("init checkpoint class order does not match classes.yaml")
+        model.load_state_dict(ckpt["model_state"])
+        print(
+            f"initialised from {args.init_checkpoint} " f"(val macro-F1 {ckpt['val_macro_f1']:.3f})"
+        )
+    if args.unfreeze_blocks > 0:
+        unfreeze_last_blocks(model, args.unfreeze_blocks)
+    model = model.to(device)
+
     total, trainable = count_params(model)
     print(f"params: {trainable:,} trainable / {total:,} total")
 
     criterion = nn.CrossEntropyLoss(weight=loaders.class_weights.to(device))
-    trainable_params = [p for p in model.parameters() if p.requires_grad]
-    optimizer = torch.optim.AdamW(trainable_params, lr=args.lr, weight_decay=1e-4)
+
+    # Two learning rates: normal for the head, smaller for the backbone
+    backbone_lr = args.backbone_lr if args.backbone_lr is not None else args.lr / 10
+    head_params = [p for p in model.classifier.parameters() if p.requires_grad]
+    backbone_params = [p for p in model.features.parameters() if p.requires_grad]
+    param_groups = [{"params": head_params, "lr": args.lr}]
+    if backbone_params:
+        param_groups.append({"params": backbone_params, "lr": backbone_lr})
+    optimizer = torch.optim.AdamW(param_groups, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
 
+    stage = "frozen_head" if args.unfreeze_blocks == 0 else f"finetune_last{args.unfreeze_blocks}"
     args.out_dir.mkdir(parents=True, exist_ok=True)
-    best_path = args.out_dir / "baseline_best.pt"
+    best_path = args.out_dir / f"{args.run_name}_best.pt"
     history, best_f1, bad_epochs = [], -1.0, 0
 
     for epoch in range(1, args.epochs + 1):
@@ -132,12 +182,14 @@ def main() -> None:
                     "model_state": model.state_dict(),
                     "class_names": loaders.class_names,
                     "arch": "mobilenet_v2",
-                    "stage": "frozen_head",
+                    "stage": stage,
                     "img_size": IMG_SIZE,
                     "mean": IMAGENET_MEAN,
                     "std": IMAGENET_STD,
                     "epoch": epoch,
                     "val_macro_f1": va_f1,
+                    "lr": args.lr,
+                    "backbone_lr": backbone_lr,
                 },
                 best_path,
             )
@@ -148,7 +200,8 @@ def main() -> None:
                 print(f"early stop: no improvement for {args.patience} epochs")
                 break
 
-    (args.out_dir / "baseline_history.json").write_text(json.dumps(history, indent=2))
+    history_path = args.out_dir / f"{args.run_name}_history.json"
+    history_path.write_text(json.dumps(history, indent=2))
     print(f"best val macro-F1: {best_f1:.3f}")
 
 
