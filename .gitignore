@@ -70,3 +70,6 @@ client/dev-dist/
 vite.config.ts.timestamp-*
 
 ml-service/artifacts/
+!ml-service/reports/eval_*.txt
+!ml-service/reports/eval_*.json
+!ml-service/reports/confusion_*.png

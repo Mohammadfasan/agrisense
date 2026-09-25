@@ -6,47 +6,47 @@
     "test": 0.15
   },
   "resize_to": 256,
-  "total_images": 5027,
+  "total_images": 14210,
   "per_split": {
-    "train": 3519,
-    "val": 755,
-    "test": 753
+    "train": 9946,
+    "val": 2134,
+    "test": 2130
   },
   "per_class": {
     "maize_common_rust": {
-      "train": 167,
-      "val": 36,
-      "test": 36
+      "train": 834,
+      "val": 179,
+      "test": 179
     },
     "maize_healthy": {
-      "train": 163,
-      "val": 35,
-      "test": 35
+      "train": 814,
+      "val": 174,
+      "test": 174
     },
     "pepper_bacterial_spot": {
-      "train": 140,
-      "val": 30,
-      "test": 30
+      "train": 698,
+      "val": 150,
+      "test": 149
     },
     "pepper_healthy": {
-      "train": 207,
-      "val": 44,
-      "test": 44
+      "train": 1034,
+      "val": 222,
+      "test": 222
     },
     "potato_early_blight": {
-      "train": 140,
-      "val": 30,
-      "test": 30
+      "train": 700,
+      "val": 150,
+      "test": 150
     },
     "potato_healthy": {
-      "train": 22,
-      "val": 5,
-      "test": 4
+      "train": 106,
+      "val": 23,
+      "test": 23
     },
     "potato_late_blight": {
-      "train": 140,
-      "val": 30,
-      "test": 30
+      "train": 700,
+      "val": 150,
+      "test": 150
     },
     "rice_brown_spot": {
       "train": 675,
@@ -59,20 +59,20 @@
       "test": 264
     },
     "tomato_early_blight": {
-      "train": 140,
-      "val": 30,
-      "test": 30
+      "train": 700,
+      "val": 150,
+      "test": 150
     },
     "tomato_healthy": {
-      "train": 222,
-      "val": 48,
-      "test": 48
+      "train": 1114,
+      "val": 239,
+      "test": 238
     },
     "tomato_late_blight": {
-      "train": 268,
-      "val": 57,
-      "test": 57
+      "train": 1336,
+      "val": 287,
+      "test": 286
     }
   },
-  "manifest_sha256": "b35b34b9f037507efc4f47b1f4b6362e498a767f7cb1baac0516971645c1b457"
+  "manifest_sha256": "01ab7fb0a440b7ef92b5af0b10eae273f2c200c793ca23d0c0d577ba51655450"
 }

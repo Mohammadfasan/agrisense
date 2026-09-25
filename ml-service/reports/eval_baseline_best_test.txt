@@ -1,0 +1,18 @@
+                       precision    recall  f1-score   support
+
+    maize_common_rust      1.000     1.000     1.000       179
+        maize_healthy      1.000     1.000     1.000       174
+pepper_bacterial_spot      0.760     1.000     0.864       149
+       pepper_healthy      0.985     0.887     0.934       222
+  potato_early_blight      0.987     0.980     0.983       150
+       potato_healthy      0.679     0.826     0.745        23
+   potato_late_blight      0.929     0.867     0.897       150
+      rice_brown_spot      0.841     0.841     0.841       145
+         rice_healthy      0.913     0.913     0.913       264
+  tomato_early_blight      0.841     0.920     0.879       150
+       tomato_healthy      0.983     0.975     0.979       238
+   tomato_late_blight      0.949     0.846     0.895       286
+
+             accuracy                          0.925      2130
+            macro avg      0.906     0.921     0.911      2130
+         weighted avg      0.931     0.925     0.926      2130

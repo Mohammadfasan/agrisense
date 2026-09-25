@@ -1,0 +1,52 @@
+{
+  "checkpoint": "artifacts\\baseline_best.pt",
+  "split": "val",
+  "n_images": 2134,
+  "accuracy": 0.936269915651359,
+  "macro_f1": 0.9347808629803023,
+  "threshold": 0.5,
+  "coverage": 0.9798500468603561,
+  "accuracy_diagnosed": 0.9464371114299378,
+  "top_confusions": [
+    [
+      27,
+      "rice_healthy",
+      "rice_brown_spot"
+    ],
+    [
+      20,
+      "tomato_late_blight",
+      "tomato_early_blight"
+    ],
+    [
+      13,
+      "rice_brown_spot",
+      "rice_healthy"
+    ],
+    [
+      12,
+      "pepper_healthy",
+      "pepper_bacterial_spot"
+    ],
+    [
+      9,
+      "tomato_late_blight",
+      "pepper_bacterial_spot"
+    ],
+    [
+      9,
+      "tomato_early_blight",
+      "tomato_late_blight"
+    ],
+    [
+      7,
+      "tomato_late_blight",
+      "potato_late_blight"
+    ],
+    [
+      6,
+      "potato_late_blight",
+      "pepper_bacterial_spot"
+    ]
+  ]
+}
