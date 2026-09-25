@@ -591,3 +591,32 @@ None.
 - Week 5 ideas: photo guidance ("fill the screen with the damaged spot");
   show the heatmap only for disease results.
 - Limitation: 7x7 heatmap = ~32x32 px per cell; shows area, not exact lesion outline.
+
+## Day 18 — Final policy report + ONNX export (2026-09-25)
+
+### Inference policy on the test set (run once, 2,130 photos)
+
+| Policy                                | Diagnosed | Acc (diagnosed) | Errors passed | Dangerous |
+| ------------------------------------- | --------- | --------------- | ------------- | --------- |
+| Old: 0.50, no calibration             | 99.8%     | 0.970           | 63            | 33        |
+| New: T=1.173, base 0.70, healthy 0.90 | 94.4%     | 0.990           | 20            | 7         |
+
+- Errors reaching farmers -68%, dangerous errors -79%, 5.6% escalated.
+- Test matches the val estimate (93.6% / 22 / 6) -> the policy is not overfitted to val.
+- Crop masking: coverage 95.7% but dangerous 7 -> 8. Masking redistributes probability
+  and raises confidence, so thresholds must be re-tuned on val WITH masking before adopting it.
+- Officer workload: rice escalated most (brown_spot 9.7%, healthy 11.4%).
+
+### ONNX export
+
+- artifacts/agrisense_mobilenetv2.onnx: 9.1 MB, opset 18, dynamic batch,
+  weights embedded (external_data=False) so one SHA256 covers the whole model.
+- Output = raw logits; temperature, thresholds and masking stay in inference.yaml.
+- Verified on 64 val images: max logit diff 3e-5, identical predictions.
+- CPU single-image inference: ONNX Runtime ~5-8x faster than PyTorch.
+- Sidecar JSON: class names, normalisation, source checkpoint, SHA256.
+- Week 5 decision: Grad-CAM needs gradients (PyTorch); ONNX for fast prediction.
+
+### Week 4 complete
+
+Final model: fine-tuned MobileNetV2, test macro-F1 0.957.
