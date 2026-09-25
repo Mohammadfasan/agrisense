@@ -74,3 +74,4 @@ ml-service/artifacts/
 !ml-service/reports/eval_*.json
 !ml-service/reports/confusion_*.png
 !ml-service/reports/calibration_*
+!ml-service/reports/gradcam_*
