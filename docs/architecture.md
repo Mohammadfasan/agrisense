@@ -218,3 +218,39 @@ the costliest error: the farmer is told the crop is fine and does nothing.
 say "looks healthy, but an officer will confirm" rather than "unknown".
 Val was used for epoch selection, T and thresholds, so these numbers are
 slightly optimistic; the policy will be reported once on the test set.
+
+### ADR-00X: ONNX Runtime only in ml-service; CAM computed inside the ONNX graph
+
+**Status:** Accepted (Week 5, Day 19)
+
+**Context.** ONNX Runtime is ~5–8× faster than PyTorch on CPU and much
+smaller to deploy, but it cannot compute gradients. Grad-CAM needs the
+gradient of the class score with respect to the last feature maps.
+
+**Decision.** The model head is GAP → Dropout → Linear(1280, 12), and the
+Grad-CAM target is `features[-1]`. For this structure the gradient of
+score_c with respect to feature map A_k is the constant w[c,k] / (H·W), so
+Grad-CAM equals CAM: heatmap_c = ReLU(Σ_k w[c,k] · A_k). We export a
+wrapper model whose outputs are `logits` (N×12) and `cams` (N×12×7×7).
+The service applies temperature, thresholds, ReLU, normalisation and
+upsampling. PyTorch is not a service dependency.
+
+**Consequences.** + one model file, smaller image, faster responses.
+
+- heatmaps come from the same forward pass as the prediction.
+  − only valid while the head stays GAP + a single linear layer; a head
+  change must revisit this ADR. Verified by a parity test against the
+  Week 4 PyTorch Grad-CAM.
+
+### ADR-00Y: Model artifacts delivered as GitHub Release assets with pinned SHA256
+
+**Status:** Accepted (Week 5, Day 19)
+
+**Decision.** Model files are never committed to Git. Each model version is
+a GitHub Release (tag `model-vX.Y.Z`). `ml-service/config/inference.yaml`
+holds the download URL and SHA256. `scripts/fetch_model.py` downloads and
+verifies the file; a hash mismatch stops startup. `/ready` returns 503
+until the model is loaded.
+
+**Consequences.** + explicit, reproducible model version; corrupted or
+tampered files cannot load. − one extra step at build or startup.
