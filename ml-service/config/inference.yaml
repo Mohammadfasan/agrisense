@@ -1,0 +1,15 @@
+# AgriSense inference policy.
+# Decided on the val set (Day 16). Evidence: reports/calibration_val.json
+# Do not change these numbers based on test-set results.
+
+model:
+  checkpoint: artifacts/finetune_best.pt
+  arch: mobilenet_v2
+  img_size: 224
+
+calibration:
+  temperature: 1.173   # softmax(logits / T); fitted on val, ECE 0.0063 -> 0.0044
+
+thresholds:
+  base: 0.70      # below this: no diagnosis, escalate to an officer
+  healthy: 0.90   # a "healthy" answer needs extra confidence (missed disease is the costliest error)

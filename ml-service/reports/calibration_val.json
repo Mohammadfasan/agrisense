@@ -1,0 +1,89 @@
+{
+  "checkpoint": "artifacts\\finetune_best.pt",
+  "fitted_on": "val",
+  "temperature": 1.1725316047668457,
+  "ece_before": 0.006258684670467043,
+  "ece_after": 0.004448647016437695,
+  "threshold_table": [
+    {
+      "threshold": 0.5,
+      "coverage": 0.9953139643861293,
+      "errors_passed": 65,
+      "dangerous_passed": 24
+    },
+    {
+      "threshold": 0.6,
+      "coverage": 0.979381443298969,
+      "errors_passed": 51,
+      "dangerous_passed": 24
+    },
+    {
+      "threshold": 0.7,
+      "coverage": 0.9597000937207123,
+      "errors_passed": 34,
+      "dangerous_passed": 18
+    },
+    {
+      "threshold": 0.8,
+      "coverage": 0.9334582942830365,
+      "errors_passed": 23,
+      "dangerous_passed": 13
+    },
+    {
+      "threshold": 0.9,
+      "coverage": 0.8931583880037488,
+      "errors_passed": 10,
+      "dangerous_passed": 6
+    },
+    {
+      "threshold": 0.95,
+      "coverage": 0.8547328959700093,
+      "errors_passed": 5,
+      "dangerous_passed": 2
+    }
+  ],
+  "healthy_table": [
+    {
+      "healthy_threshold": 0.5,
+      "coverage": 0.9597000937207123,
+      "errors_passed": 34,
+      "dangerous_passed": 18,
+      "healthy_leaves_escalated": 12
+    },
+    {
+      "healthy_threshold": 0.7,
+      "coverage": 0.9597000937207123,
+      "errors_passed": 34,
+      "dangerous_passed": 18,
+      "healthy_leaves_escalated": 12
+    },
+    {
+      "healthy_threshold": 0.8,
+      "coverage": 0.9493908153701968,
+      "errors_passed": 29,
+      "dangerous_passed": 13,
+      "healthy_leaves_escalated": 29
+    },
+    {
+      "healthy_threshold": 0.9,
+      "coverage": 0.936269915651359,
+      "errors_passed": 22,
+      "dangerous_passed": 6,
+      "healthy_leaves_escalated": 50
+    },
+    {
+      "healthy_threshold": 0.95,
+      "coverage": 0.922211808809747,
+      "errors_passed": 18,
+      "dangerous_passed": 2,
+      "healthy_leaves_escalated": 76
+    },
+    {
+      "healthy_threshold": 0.98,
+      "coverage": 0.8959700093720713,
+      "errors_passed": 17,
+      "dangerous_passed": 1,
+      "healthy_leaves_escalated": 131
+    }
+  ]
+}

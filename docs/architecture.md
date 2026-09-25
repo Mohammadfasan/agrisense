@@ -189,3 +189,32 @@ to get wrong during the sync that the field exists to make safe.
   UUID v4s do not. Anything that wants "newest first" sorts on a real
   timestamp, which is why the plot list sorts on `updatedAt` and breaks ties on
   `_id` rather than sorting on `_id` alone.
+
+## ADR-00X: Calibrated, asymmetric confidence thresholds
+
+**Status:** Accepted (Day 16). Replaces the fixed "confidence < 0.50 → escalate" rule.
+
+**Context:** With the fine-tuned model, a 0.50 threshold escalated only 0.5% of
+val photos and let 65 errors through. 24 of them were "diseased → healthy",
+the costliest error: the farmer is told the crop is fine and does nothing.
+
+**Decision:**
+
+- Temperature scaling (T = 1.173, fitted on val) before softmax.
+- Base threshold 0.70: below it, no diagnosis; escalate to an officer.
+- "Healthy" predictions need confidence ≥ 0.90.
+- Values live in `ml-service/config/inference.yaml`, not in code.
+
+**Evidence (val, 2,134 photos):** errors passed 65 → 22, dangerous errors 24 → 6,
+93.6% of photos diagnosed, 6.4% escalated.
+
+**Alternatives considered:**
+
+- One threshold for all classes: 0.80 still passed 13 dangerous errors at lower coverage (93.3%).
+- Healthy threshold 0.95: only 2 dangerous errors, but 7.8% escalated.
+  Can be adopted by changing one config value if officer capacity allows.
+
+**Consequences:** About 5% of truly healthy leaves go to an officer. The UI should
+say "looks healthy, but an officer will confirm" rather than "unknown".
+Val was used for epoch selection, T and thresholds, so these numbers are
+slightly optimistic; the policy will be reported once on the test set.
