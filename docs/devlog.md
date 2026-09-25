@@ -575,3 +575,19 @@ has been hiding since Day 9.
 ### Dependencies added
 
 None.
+
+## Day 17 — Grad-CAM (2026-09-25)
+
+- GradCAM class on model.features[-1] (7x7), forward + gradient hooks.
+  Reusable in the FastAPI service. Input requires_grad so gradients flow through frozen layers.
+- Correct predictions: heatmaps sit on lesions (potato/tomato late blight,
+  pepper bacterial spot, tomato early blight at the leaf edge). No background shortcut.
+- Dangerous errors: 7 of 8 PlantVillage cases are potato_late_blight with a
+  small lesion at the leaf edge; the heatmap focuses on healthy tissue in the center.
+  The model misses early-stage disease. 3 potato leaves predicted as pepper_healthy
+  (crop masking would fix these).
+- Rice field photos: heatmaps spread over the whole field; tiny spots can't be localized.
+- The Day 16 policy (healthy >= 0.90) would escalate 11 of the 12 dangerous errors shown.
+- Week 5 ideas: photo guidance ("fill the screen with the damaged spot");
+  show the heatmap only for disease results.
+- Limitation: 7x7 heatmap = ~32x32 px per cell; shows area, not exact lesion outline.
