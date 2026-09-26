@@ -3,10 +3,12 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 SERVICE_ROOT = Path(__file__).resolve().parents[2]
+
+MIN_KEY_LENGTH = 32
 
 
 class Settings(BaseSettings):
@@ -38,6 +40,14 @@ class Settings(BaseSettings):
     # normal caller, browsers only reach it through that.
     cors_origins: list[str] = ["http://localhost:5173", "http://localhost:4000"]
 
+    # Shared secret. The Node API sends it in the X-Internal-Key header on
+    # every call. No default: the service refuses to start without it.
+    internal_api_key: SecretStr
+
+    # Largest photo /v1/diagnose accepts. Phone photos are usually 2-6 MB,
+    # and the client compresses before upload (Day 23).
+    max_upload_bytes: int = Field(default=8 * 1024 * 1024, gt=0, le=32 * 1024 * 1024)
+
     @field_validator("models_dir")
     @classmethod
     def _anchor_to_service_root(cls, value: Path) -> Path:
@@ -48,6 +58,16 @@ class Settings(BaseSettings):
         from ``ml-service/`` but not from the repository root.
         """
         return value if value.is_absolute() else (SERVICE_ROOT / value).resolve()
+
+    @field_validator("internal_api_key")
+    @classmethod
+    def _strong_real_key(cls, value: SecretStr) -> SecretStr:
+        secret = value.get_secret_value()
+        if secret.lower().startswith("change-me"):
+            raise ValueError("INTERNAL_API_KEY is still the .env.example placeholder")
+        if len(secret) < MIN_KEY_LENGTH:
+            raise ValueError(f"INTERNAL_API_KEY must be at least {MIN_KEY_LENGTH} characters")
+        return value
 
 
 @lru_cache

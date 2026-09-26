@@ -1,10 +1,4 @@
+# Tests and local tooling. Includes the service deps.
 -r requirements.txt
-black==24.10.0
-ruff==0.8.4
-httpx==0.28.1
 pytest==8.3.4
-
-# Offline dataset tooling only (scripts/inspect_dataset.py). Deliberately NOT
-# in requirements.txt: the inference image has no use for a plotting stack, and
-# it is ~50MB of one. inspect_dataset.py runs without it and skips the chart.
-matplotlib==3.10.0
+httpx==0.28.1
