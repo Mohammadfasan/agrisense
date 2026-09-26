@@ -662,3 +662,31 @@ Final model: fine-tuned MobileNetV2, test macro-F1 0.957.
 **Tech debt**
 
 - Export uses the legacy TorchScript exporter (`dynamo=False`); migrate when removed.
+
+## Day 20 — Inference core (Week 5)
+
+**Built**
+
+- `app/services/preprocess.py`: upload bytes -> tensor. Checks format
+  (JPEG/PNG/WebP), pixel count before decode (decompression bombs, 50 MP cap),
+  minimum 64 px, truncated files. Applies EXIF orientation.
+  `InvalidImageError` carries a message safe to show the user.
+- `app/services/policy.py`: softmax(logits / T) + asymmetric thresholds
+  (base 0.70, healthy 0.90). One vectorised `evaluate()` used by both the
+  service and the parity script. Crop masking NOT applied (raised dangerous
+  errors 7 -> 8 on test; needs thresholds re-tuned on val first).
+- `app/services/heatmap.py`: ReLU + normalise the in-graph CAM into a 7x7
+  grid (~300 bytes) plus the photo region it covers
+  [0.0625, 0.0625, 0.9375, 0.9375]. Only for disease classes. The client
+  draws the overlay (Day 23).
+- `DiseaseModel.predict()`: preprocess -> ONNX -> policy -> heatmap.
+
+**Evidence**
+
+- cam_parity now calls the service's preprocess: diff 0.0, PASS.
+- Policy unit check: the same confidence 0.866 gives "diagnosed" for a
+  disease and "escalated" for a healthy class.
+- Service parity on the full test set (2,130 photos), production code only:
+  escalated 120 / errors 20 / dangerous 7 — identical to policy_test.json.
+  0 borderline photos. Accuracy on diagnosed 0.990.
+- Latency (CPU, ONNX Runtime): mean ~9 ms, p95 ~10 ms after warm-up.
