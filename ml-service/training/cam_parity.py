@@ -31,8 +31,10 @@ import numpy as np
 import onnxruntime as ort
 import torch
 import torch.nn.functional as F
-from PIL import Image, ImageOps
+from PIL import Image
 
+from app.services.preprocess import InputSpec
+from app.services.preprocess import preprocess as service_preprocess
 from training.data import build_transforms
 from training.export_onnx import (
     ARTIFACTS,
@@ -61,21 +63,8 @@ IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png"}
 
 
 def preprocess(path: Path, spec: dict) -> np.ndarray:
-    """Sidecar-driven preprocessing. Returns a (3, H, W) float32 array."""
-    if spec["resample"] != "bicubic" or spec["keep_aspect_ratio"]:
-        raise ValueError(f"Unsupported preprocessing spec: {spec}")
-
-    size, crop = spec["resize_to"], spec["center_crop"]
-    left = (size - crop) // 2
-    with Image.open(path) as im:
-        im = ImageOps.exif_transpose(im).convert("RGB")
-        im = im.resize((size, size), Image.BICUBIC)
-        im = im.crop((left, left, left + crop, left + crop))
-        arr = np.asarray(im, dtype=np.float32) / 255.0
-
-    mean = np.array(spec["mean"], dtype=np.float32)
-    std = np.array(spec["std"], dtype=np.float32)
-    return ((arr - mean) / std).transpose(2, 0, 1)
+    """Uses the SERVICE's preprocessing, so this test covers production code."""
+    return service_preprocess(path.read_bytes(), InputSpec.from_sidecar(spec))[0]
 
 
 # ---------- heatmaps ----------
