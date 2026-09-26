@@ -620,3 +620,45 @@ None.
 ### Week 4 complete
 
 Final model: fine-tuned MobileNetV2, test macro-F1 0.957.
+
+## Day 19 — ML service foundation (Week 5)
+
+**Decisions**
+
+- ADR: ONNX Runtime only in ml-service. The head is GAP + one linear layer,
+  so Grad-CAM on features[-1] equals CAM. The export wrapper outputs
+  `logits` and `cams` (12×7×7) from one forward pass, so there are no
+  gradients and no PyTorch in the service.
+- ADR: model files delivered as a GitHub Release (`model-v1.0.0`), pinned by
+  SHA256 in `config/inference.yaml` (`release:` block).
+- Retired the file-based model registry: the loaded model reports itself.
+
+**Evidence**
+
+- Export: wrapper vs model 3.8e-06; ONNX Runtime vs PyTorch 1.05e-05 (logits),
+  4.0e-05 (cams).
+- Parity on 24 real val images (2 per class): heatmap correlation ≥ 0.99999999,
+  max diff 3.3e-06, same prediction 24/24.
+- Sidecar-only preprocessing is bit-identical to the Week 4 val transform (diff 0.0).
+- fetch_model.py tested: fresh download, idempotent skip, wrong pinned hash
+  (stops, leaves nothing), corrupted local file (re-downloads), 404 (fails fast).
+
+**Built**
+
+- `training/onnx_wrapper.py`, `training/export_onnx.py`, `training/cam_parity.py`
+- `scripts/fetch_model.py`
+- `app/core/inference_config.py`: validated config; healthy < base is rejected
+- `app/services/disease_model.py`: 4-step verified load, not-ready with reason
+- `/ready` (200 / 503 + reason), `/models/disease`
+- Requirements split: service has no torch (`requirements-train.txt` for training)
+
+**Found and fixed**
+
+- Old `services/disease.py` resized straight to 224 (training used 256 bicubic
+  → center crop 224). It would have silently changed predictions.
+- `.env` had `MODELS_DIR=models`, which overrode the new code default.
+- On Windows use `127.0.0.1`, not `localhost` (IPv6 resolution).
+
+**Tech debt**
+
+- Export uses the legacy TorchScript exporter (`dynamo=False`); migrate when removed.
