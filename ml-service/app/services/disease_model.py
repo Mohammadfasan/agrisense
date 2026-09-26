@@ -1,21 +1,9 @@
-"""Loads the disease model once at startup and reports whether it is ready.
-
-Sources of truth (ADR-00Y):
-  config/inference.yaml (release:)  -> which files, pinned SHA256, version
-  sidecar JSON                      -> input recipe, outputs, class order
-  config/classes.yaml               -> class keys the rest of the app uses
-
-Loading never downloads (that is scripts/fetch_model.py's job). If anything
-is missing or does not match, the model is NOT loaded and `error` says why.
-/ready then returns 503 with that reason, while /health stays 200: the
-process is alive, it just must not receive scan traffic.
-"""
-
 from __future__ import annotations
 
 import hashlib
 import json
 import logging
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -25,6 +13,9 @@ import onnxruntime as ort
 from app.core.classes import load_classes
 from app.core.config import Settings
 from app.core.inference_config import InferenceConfig
+from app.services.heatmap import Heatmap, build_heatmap
+from app.services.policy import Decision, DecisionPolicy
+from app.services.preprocess import InputSpec, preprocess
 
 log = logging.getLogger(__name__)
 
@@ -45,6 +36,16 @@ def sha256_of(path: Path) -> str:
 
 
 @dataclass(frozen=True)
+class Prediction:
+    """Everything the API needs to answer one scan."""
+
+    model_version: str
+    decision: Decision
+    heatmap: Heatmap | None
+    inference_ms: float
+
+
+@dataclass(frozen=True)
 class DiseaseModel:
     """A verified, loaded model. Only created when every check has passed."""
 
@@ -53,10 +54,38 @@ class DiseaseModel:
     session: ort.InferenceSession
     sidecar: dict[str, Any]
     class_keys: list[str]
+    spec: InputSpec
+    policy: DecisionPolicy
 
     @property
     def input_spec(self) -> dict[str, Any]:
         return self.sidecar["input"]
+
+    def predict(self, data: bytes) -> Prediction:
+        """Diagnose one uploaded photo.
+
+        Raises InvalidImageError (from preprocess) when the upload is not a
+        usable photo - the API turns that into a 400 with a safe message.
+        ONNX Runtime sessions are thread-safe, so FastAPI's worker threads
+        can call this at the same time.
+        """
+        start = time.perf_counter()
+
+        x = preprocess(data, self.spec)
+        logits, cams = self.session.run(EXPECTED_OUTPUTS, {EXPECTED_INPUTS[0]: x})
+        decision = self.policy.decide(logits[0])
+
+        # A heatmap for a "healthy" class has no meaning, so only diseases get one.
+        heatmap = (
+            None if decision.is_healthy else build_heatmap(cams[0, decision.class_index], self.spec)
+        )
+
+        return Prediction(
+            model_version=self.version,
+            decision=decision,
+            heatmap=heatmap,
+            inference_ms=round((time.perf_counter() - start) * 1000, 1),
+        )
 
 
 @dataclass(frozen=True)
@@ -111,12 +140,18 @@ def _load(settings: Settings, config: InferenceConfig) -> DiseaseModel:
     if inputs != EXPECTED_INPUTS or outputs != EXPECTED_OUTPUTS:
         raise ModelLoadError(f"Unexpected graph I/O: inputs {inputs}, outputs {outputs}")
 
+    # 5. Preprocessing recipe and decision policy, validated once here
+    spec = InputSpec.from_sidecar(sidecar["input"])
+    policy = DecisionPolicy.from_config(config)
+
     return DiseaseModel(
         version=release.version,
         onnx_sha256=release.onnx.sha256,
         session=session,
         sidecar=sidecar,
         class_keys=class_keys,
+        spec=spec,
+        policy=policy,
     )
 
 
