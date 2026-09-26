@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import api_router
 from app.core.config import Settings, get_settings
 from app.core.inference_config import get_inference_config
+from app.core.limits import add_body_size_limit
 from app.services.disease_model import load_model_state
 
 
@@ -55,6 +56,9 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Reject oversized photos from the Content-Length header, before the body is read.
+    add_body_size_limit(app, settings.max_upload_bytes, frozenset({"/v1/diagnose"}))
 
     app.include_router(api_router)
     return app
