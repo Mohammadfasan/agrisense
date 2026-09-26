@@ -1,26 +1,44 @@
-"""Model metadata endpoints."""
+"""Model metadata endpoints.
+
+Reports the model that is actually loaded in this process (from app.state),
+not what a file on disk claims. The version, hash and class list come from
+the verified sidecar; the policy numbers come from the validated config.
+"""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Request
 
-from app.core.model_registry import ModelRegistryError, list_active, load_active
-from app.schemas.model import ActiveModel, ActiveModelsResponse, ModelType
+from app.core.inference_config import get_inference_config
+from app.schemas.model import DiseaseModelInfo
+from app.services.disease_model import ModelState
 
 router = APIRouter(prefix="/models", tags=["models"])
 
 
-@router.get("/active", response_model=ActiveModelsResponse, summary="Active model versions")
-def active_models() -> ActiveModelsResponse:
-    """List the serving version of every model type that has a manifest."""
-    models = list_active()
-    return ActiveModelsResponse(count=len(models), models=models)
+@router.get("/disease", response_model=DiseaseModelInfo, summary="Disease model in service")
+def disease_model(request: Request) -> DiseaseModelInfo:
+    config = get_inference_config()
+    policy = {
+        "temperature": config.calibration.temperature,
+        "threshold_base": config.thresholds.base,
+        "threshold_healthy": config.thresholds.healthy,
+    }
 
+    state: ModelState | None = getattr(request.app.state, "model_state", None)
+    if state is None or state.model is None:
+        return DiseaseModelInfo(
+            loaded=False,
+            error=state.error if state else "startup has not finished",
+            **policy,
+        )
 
-@router.get("/active/{model_type}", response_model=ActiveModel, summary="One active model")
-def active_model(model_type: ModelType) -> ActiveModel:
-    """Resolve the serving version of a single model type."""
-    try:
-        return load_active(model_type)
-    except ModelRegistryError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    model = state.model
+    return DiseaseModelInfo(
+        loaded=True,
+        version=model.version,
+        onnx_sha256=model.onnx_sha256,
+        classes=model.class_keys,
+        input_size=model.input_spec["center_crop"],
+        **policy,
+    )
