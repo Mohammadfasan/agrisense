@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
 
-    models_dir: Path = SERVICE_ROOT / "models"
+    models_dir: Path = SERVICE_ROOT / "artifacts"
 
     # Origins allowed to call this service directly; the Node API is the
     # normal caller, browsers only reach it through that.
