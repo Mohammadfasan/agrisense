@@ -45,8 +45,10 @@ vi.mock('./photoStorage', async (importOriginal) => {
   const actual = await importOriginal<typeof PhotoStorageModule>();
   const { mkdtempSync } = await import('node:fs');
   const { tmpdir } = await import('node:os');
+  // The whole module, not `{ join }`: `join` is typed as a method of it.
   const nodePath = await import('node:path');
   fake.uploadDir = mkdtempSync(nodePath.join(tmpdir(), 'agrisense-scans-'));
+
   return {
     ...actual,
     LocalPhotoStorage: class extends actual.LocalPhotoStorage {
