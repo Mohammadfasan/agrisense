@@ -690,3 +690,67 @@ Final model: fine-tuned MobileNetV2, test macro-F1 0.957.
   escalated 120 / errors 20 / dangerous 7 — identical to policy_test.json.
   0 borderline photos. Accuracy on diagnosed 0.990.
 - Latency (CPU, ONNX Runtime): mean ~9 ms, p95 ~10 ms after warm-up.
+
+## Day 21 — Diagnose endpoint and tests (Week 5)
+
+**Built**
+
+- `POST /v1/diagnose` (multipart field `image`). Status codes:
+  200 decision · 400 not a usable photo (message safe for the farmer) ·
+  401 bad/missing key · 411 no Content-Length · 413 too large ·
+  422 no image field · 503 model not loaded.
+- Internal auth: `X-Internal-Key` shared with the Node API. `SecretStr`,
+  required at startup (no default), placeholder and short keys rejected,
+  constant-time comparison (`secrets.compare_digest`).
+- Upload limit in two layers: middleware rejects by Content-Length before
+  the body is read; the endpoint re-checks the real byte count.
+- The response always includes the top guess and top-3, even when
+  escalated: Node decides what the farmer sees, officers see what the
+  model thought. Heatmap only for disease classes.
+- `requirements-dev.txt` (pytest, httpx), `pytest.ini`.
+
+**Tests** — 19 passing in < 1 s: every status code above, disease vs
+healthy response shape, the asymmetric threshold rule (same 0.866 →
+diagnosed for disease, escalated for healthy), and config validation
+(missing / placeholder / short key, healthy < base).
+
+**Security note** — rotated the dev internal key after it was pasted into
+a chat. Rule: never share `.env` contents; print lengths, not values.
+
+## Day 22 Part A — Scans on the Node server (Week 5)
+
+**Built** (`server/src/modules/scans/`, `models/scan.model.ts`)
+
+- `Scan` model: client UUID `_id`, written once; `status` pending →
+  diagnosed | escalated | rejected. Full ML answer stored (officer review,
+  Week 9 drift). Crop copied from the plot at capture time. Indexes:
+  owner/live/recent, partial `pending_queue`, `location` 2dsphere.
+- `PUT /api/v1/scans/:id` (multipart `photo` + `capturedAt`, optional
+  `plotId`, `longitude`/`latitude`) and `GET /api/v1/scans/:id`.
+- Photo storage behind a `PhotoStorage` interface (local disk now, S3
+  later): magic-byte type check (client MIME ignored), strict key pattern +
+  root check against path traversal, temp-file + rename.
+- ML client: timeout, `X-Internal-Key`, response validated with Zod;
+  every answer mapped to decision / rejected / unavailable. Never throws.
+- Env: `ML_SERVICE_URL`, `ML_SERVICE_KEY` (required in production),
+  `ML_TIMEOUT_MS`, `SCAN_MAX_BYTES`, `UPLOAD_DIR`.
+
+**Decisions**
+
+- ML down → scan saved as `pending`, never lost; a replay of a pending
+  upload retries the diagnosis for free.
+- Replay with the same photo → 200 with the stored scan, model NOT called
+  again. Same id with a different photo → 409 `SCAN_CONFLICT`.
+- Farmer view hides the diagnosis unless `status === 'diagnosed'`: the
+  confidence ADR is enforced on the server, not trusted to the client.
+- `version` bumps only on changes the farmer can see (not on a deferred
+  attempt), so Week 6 sync does not churn.
+
+**Tests** — 32 new (6 storage, 10 ML client, 16 integration through the
+real app with `vi.mock` for ML and a temp upload dir). Full suite: 387.
+
+**Tech debt**
+
+- `tsconfig` uses `moduleResolution: "Node"` (deprecated in TS 6);
+  migrate to `Node16` when upgrading TypeScript. VS Code pinned to the
+  workspace TypeScript meanwhile.
