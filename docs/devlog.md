@@ -767,3 +767,40 @@ real app with `vi.mock` for ML and a temp upload dir). Full suite: 387.
   guard is satisfied.
 - Added `server/scripts/devToken.ts` (dev-only, outside src/, refuses to
   run in production). Use `for /f ... do @set` so CMD does not echo tokens.
+
+## Day 22 Part B — Automatic retry for pending scans (Week 5)
+
+**Design**
+
+- MongoDB is the only source of truth for what to retry. `nextAttemptAt`
+  says when a pending scan is due; claiming pushes it forward as a lease in
+  one atomic `findOneAndUpdate`, so any number of workers can sweep without
+  taking the same scan, and a crashed worker's scan comes back when its
+  lease runs out.
+- Exponential backoff 30 s → 1 h cap, ±20% jitter (no thundering herd after
+  an outage), stop after 20 attempts (~a day) and log at error level.
+- Scheduling only: BullMQ job scheduler when REDIS_URL is set (one schedule
+  cluster-wide via an idempotent scheduler id); in-process interval
+  otherwise. Redis losing jobs loses nothing — the next sweep finds every
+  due scan in MongoDB.
+- Graceful shutdown: the sweep checks `isDraining()` between scans; HTTP and
+  the scheduler stop in parallel, then MongoDB closes.
+
+**Found by running it**
+
+- Redis down → ioredis reconnect errors flooded the log (60+ lines in 15 s)
+  with EMPTY messages (Node's AggregateError when IPv6 and IPv4 both fail).
+  Now: one log line per outage, one on recovery; `describe()` unwraps
+  AggregateError and shows codes like ECONNREFUSED.
+- Added a Queue 'error' listener: an EventEmitter with no 'error' listener
+  throws, so a Redis blip would have shut the whole server down.
+
+**End-to-end** — ml-service stopped, upload → `pending`; ml-service
+restarted; ~50 s later the BullMQ sweep logged `claimed 1, decided 1` and
+the scan was `diagnosed` (tomato_late_blight, 0.91, version 2) with no
+action from the farmer. The deferred attempt had got a 404 from another
+process on port 8000 — classified as `unavailable`, so the photo was kept.
+
+**Tests** — 403 total (sweep 8: due timing, backoff, two concurrent workers
+never double-claim, lease expiry, give-up, limit; scheduler 4 with fake
+timers: interval, no overlap, survives failure, stop waits).
