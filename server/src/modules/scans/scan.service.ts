@@ -211,10 +211,16 @@ export function createScanService({ storage, ml, now = () => new Date() }: ScanS
    * fired every due scan at once would be the thundering herd the jitter in
    * `retryPolicy` exists to avoid.
    */
-  async function runDueDiagnoses(limit = 20): Promise<SweepResult> {
+  async function runDueDiagnoses(
+    limit = 20,
+    shouldStop: () => boolean = () => false,
+  ): Promise<SweepResult> {
     const result: SweepResult = { claimed: 0, decided: 0, deferred: 0 };
 
     for (let i = 0; i < limit; i += 1) {
+      if (shouldStop()) {
+        break;
+      }
       const scanId = await claimDue();
       if (scanId === null) {
         break;
@@ -230,7 +236,6 @@ export function createScanService({ storage, ml, now = () => new Date() }: ScanS
     }
     return result;
   }
-
   /**
    * The same scan id arrived again. Answers exactly what the first upload
    * would, without storing anything new.

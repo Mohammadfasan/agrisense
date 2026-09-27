@@ -1,22 +1,31 @@
 import type { Server } from 'node:http';
 
 import { connectDatabase, disconnectDatabase, env, logger } from '@config';
-import { beginDraining } from '@shared';
+import { scanService, startRetryScheduler, type RetryScheduler } from '@modules';
+import { beginDraining, isDraining } from '@shared';
 
 import { createApp } from './app';
 
 type Signal = 'SIGINT' | 'SIGTERM';
 const SHUTDOWN_SIGNALS: Signal[] = ['SIGINT', 'SIGTERM'];
 
+/** Scans taken per retry sweep. */
+const SWEEP_LIMIT = 20;
+
 let shuttingDown = false;
 
 /**
- * Boots the HTTP listener, then connects to MongoDB.
+ * Boots the HTTP listener, then connects to MongoDB, then starts background
+ * work.
  *
  * The listener comes up first on purpose: if Mongo is unreachable the process
  * still answers `/health` and reports `not_ready` on `/ready`, which is what an
  * orchestrator needs to distinguish "broken" from "not ready yet". Mongoose
  * keeps retrying in the background.
+ *
+ * The retry scheduler starts even when that first connection failed: a sweep
+ * against a database that is not there yet fails, is logged, and the next one
+ * tries again.
  */
 export async function startServer(): Promise<Server> {
   const app = createApp();
@@ -36,7 +45,15 @@ export async function startServer(): Promise<Server> {
     });
   }
 
-  registerShutdownHandlers(server);
+  const retryScheduler = startRetryScheduler({
+    // Checks `isDraining` between scans, so a shutdown is never held up by
+    // a long sweep.
+    sweep: () => scanService.runDueDiagnoses(SWEEP_LIMIT, isDraining),
+    intervalMs: env.scans.retryIntervalMs,
+    redisUrl: env.REDIS_URL,
+  });
+
+  registerShutdownHandlers(server, retryScheduler);
   return server;
 }
 
@@ -52,14 +69,15 @@ function listen(app: ReturnType<typeof createApp>, port: number, host: string): 
 }
 
 /**
- * Drains the server on a termination signal: stop accepting connections, let
- * in-flight requests finish, close MongoDB, then exit. A timer guarantees the
- * process dies even if a socket refuses to close.
+ * Drains the server on a termination signal: stop accepting connections and
+ * background work, let in-flight requests and the current scan finish, close
+ * MongoDB, then exit. A timer guarantees the process dies even if a socket
+ * refuses to close.
  */
-export function registerShutdownHandlers(server: Server): void {
+export function registerShutdownHandlers(server: Server, scheduler?: RetryScheduler): void {
   for (const signal of SHUTDOWN_SIGNALS) {
     process.on(signal, () => {
-      void shutdown(server, signal);
+      void shutdown(server, scheduler, signal);
     });
   }
 
@@ -67,23 +85,29 @@ export function registerShutdownHandlers(server: Server): void {
     logger.error('Unhandled promise rejection', {
       reason: reason instanceof Error ? reason.stack : reason,
     });
-    void shutdown(server, 'unhandledRejection', 1);
+    void shutdown(server, scheduler, 'unhandledRejection', 1);
   });
 
   process.on('uncaughtException', (error) => {
     logger.error('Uncaught exception', { error: error.stack ?? error.message });
-    void shutdown(server, 'uncaughtException', 1);
+    void shutdown(server, scheduler, 'uncaughtException', 1);
   });
 }
 
-async function shutdown(server: Server, reason: string, exitCode = 0): Promise<void> {
+async function shutdown(
+  server: Server,
+  scheduler: RetryScheduler | undefined,
+  reason: string,
+  exitCode = 0,
+): Promise<void> {
   if (shuttingDown) {
     logger.warn('Shutdown already in progress', { reason });
     return;
   }
   shuttingDown = true;
-  // Makes `drainGuard` start refusing new requests and `/ready` report
-  // not_ready, before we begin tearing anything down.
+  // Makes `drainGuard` start refusing new requests, `/ready` report
+  // not_ready, and the retry sweep stop claiming scans -- before we begin
+  // tearing anything down.
   beginDraining();
 
   logger.info('Shutting down', { reason, timeoutMs: env.SHUTDOWN_TIMEOUT_MS });
@@ -96,8 +120,16 @@ async function shutdown(server: Server, reason: string, exitCode = 0): Promise<v
   forceExit.unref();
 
   try {
-    await closeServer(server);
-    logger.info('HTTP server closed');
+    // In parallel: neither waits for the other. Both must finish before
+    // MongoDB closes, because both may still be using it.
+    await Promise.all([
+      closeServer(server).then(() => {
+        logger.info('HTTP server closed');
+      }),
+      scheduler?.stop().then(() => {
+        logger.info('Scan retry scheduler stopped');
+      }),
+    ]);
 
     await disconnectDatabase();
     logger.info('MongoDB connection closed');

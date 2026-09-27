@@ -116,6 +116,7 @@ const envSchema = z.object({
     .default(8 * 1024 * 1024),
   /** Where scan photos are stored. A relative path resolves from the server root. */
   UPLOAD_DIR: z.string().min(1).default('uploads'),
+  SCAN_RETRY_INTERVAL_MS: z.coerce.number().int().min(5_000).default(30_000),
 });
 
 export type RawEnv = z.infer<typeof envSchema>;
@@ -192,6 +193,7 @@ export const env = {
     maxBytes: raw.SCAN_MAX_BYTES,
     /** Absolute, so it does not depend on the directory the server started from. */
     uploadDir: path.resolve(SERVER_ROOT, raw.UPLOAD_DIR),
+    retryIntervalMs: raw.SCAN_RETRY_INTERVAL_MS,
   },
 } as const;
 

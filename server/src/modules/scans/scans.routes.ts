@@ -36,9 +36,9 @@ export function createScansRouter(service: ScanService): Router {
 }
 
 /** The production wiring: photos on local disk, the real ml-service. */
-export const scansRouter: Router = createScansRouter(
-  createScanService({
-    storage: new LocalPhotoStorage(env.scans.uploadDir),
-    ml: createMlClient(env.ml),
-  }),
-);
+export const scanService: ScanService = createScanService({
+  storage: new LocalPhotoStorage(env.scans.uploadDir),
+  ml: createMlClient(env.ml),
+});
+
+export const scansRouter: Router = createScansRouter(scanService);
