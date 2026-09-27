@@ -7,6 +7,7 @@ import { AppError, ErrorCode, HttpStatus, toObjectId, type GeoPoint } from '@sha
 import { detectImageType, type ImageMimeType } from './imageType';
 import type { DiagnosisClient, MlResult } from './mlClient';
 import { sha256Hex, type PhotoStorage } from './photoStorage';
+import { RETRY, nextAttemptDelay } from './retryPolicy';
 
 /**
  * Scan reads and writes.
@@ -19,8 +20,13 @@ import { sha256Hex, type PhotoStorage } from './photoStorage';
  * the same upload; it never replaces the photo. After creation only the
  * diagnosis outcome changes it, through `diagnose`.
  *
+ * Pending scans are retried by `runDueDiagnoses` (Day 22 Part B). MongoDB is
+ * the only source of truth for what is pending: `nextAttemptAt` says when a
+ * scan is due, and claiming a scan pushes it forward as a lease, so any
+ * number of workers can sweep at once without taking the same scan.
+ *
  * Dependencies are passed in (`createScanService`), not imported, so tests can
- * use a temporary directory and a fake ML client.
+ * use a temporary directory, a fake ML client and a clock they control.
  */
 
 export interface ScanInput {
@@ -37,14 +43,22 @@ export interface SaveScanResult {
   created: boolean;
 }
 
+export interface SweepResult {
+  claimed: number;
+  decided: number;
+  deferred: number;
+}
+
 export interface ScanServiceDeps {
   storage: PhotoStorage;
   ml: DiagnosisClient;
+  /** Injectable so tests can move time. */
+  now?: () => Date;
 }
 
 type PlotFacts = Pick<Plot, 'crop' | 'centroid'>;
 
-export function createScanService({ storage, ml }: ScanServiceDeps) {
+export function createScanService({ storage, ml, now = () => new Date() }: ScanServiceDeps) {
   /**
    * Creates the scan under the client's UUID, or recognises a replay of it.
    *
@@ -86,6 +100,9 @@ export function createScanService({ storage, ml }: ScanServiceDeps) {
           sizeBytes: stored.sizeBytes,
           sha256: stored.sha256,
         },
+        // This request makes the first attempt itself, so it holds the lease:
+        // the sweep leaves the scan alone while the upload is diagnosing it.
+        nextAttemptAt: new Date(now().getTime() + RETRY.leaseMs),
       });
       scan = document.toObject();
     } catch (error) {
@@ -123,13 +140,12 @@ export function createScanService({ storage, ml }: ScanServiceDeps) {
   /**
    * Asks ml-service about one pending scan and records the outcome.
    *
-   * Used right after upload (with the photo already in memory) and by the
-   * retry worker in Part B (reading the photo back from storage). Returns the
-   * updated scan, or `null` when the scan is no longer pending -- already
-   * decided by another caller, deleted, or gone.
+   * Used right after upload (with the photo already in memory), on a replay,
+   * and by the retry sweep (reading the photo back from storage). Returns the
+   * updated scan, or `null` when the scan is no longer pending.
    *
-   * The update filter repeats `status: 'pending'`, so when the upload request
-   * and the worker race on one scan, only the first outcome is written.
+   * The update filter repeats `status: 'pending'`, so when two callers race on
+   * one scan, only the first outcome is written.
    */
   async function diagnose(scanId: string, photo?: Buffer): Promise<Scan | null> {
     const scan = await ScanModel.findOne({ _id: scanId, status: 'pending', deletedAt: null })
@@ -143,16 +159,76 @@ export function createScanService({ storage, ml }: ScanServiceDeps) {
     // Stored by `save` from `detectImageType`, so it is one of the three.
     const result = await ml.diagnose(bytes, scan.photo.mimeType as ImageMimeType);
 
+    let nextAttemptAt: Date | null = null;
     if (result.kind === 'unavailable') {
-      logger.warn('Scan diagnosis deferred', { scanId, error: result.error });
+      const delay = nextAttemptDelay(scan.attempts + 1);
+      nextAttemptAt = delay === null ? null : new Date(now().getTime() + delay);
+      if (delay === null) {
+        logger.error('Scan diagnosis gave up after the last attempt', {
+          scanId,
+          attempts: scan.attempts + 1,
+          error: result.error,
+        });
+      } else {
+        logger.warn('Scan diagnosis deferred', { scanId, error: result.error, retryInMs: delay });
+      }
     }
 
-    return ScanModel.findOneAndUpdate({ _id: scanId, status: 'pending' }, outcomeUpdate(result), {
-      new: true,
-      runValidators: true,
-    })
+    return ScanModel.findOneAndUpdate(
+      { _id: scanId, status: 'pending' },
+      outcomeUpdate(result, nextAttemptAt),
+      { new: true, runValidators: true },
+    )
       .lean<Scan>()
       .exec();
+  }
+
+  /**
+   * Takes the soonest due pending scan, if any, and holds it with a lease.
+   *
+   * One atomic `findOneAndUpdate`: finding the scan and pushing its
+   * `nextAttemptAt` forward happen together, so two workers can never claim
+   * the same scan. If this worker dies mid-diagnosis, the lease simply runs
+   * out and the scan is due again.
+   */
+  async function claimDue(): Promise<string | null> {
+    const at = now();
+    const claimed = await ScanModel.findOneAndUpdate(
+      { status: 'pending', deletedAt: null, nextAttemptAt: { $lte: at } },
+      { $set: { nextAttemptAt: new Date(at.getTime() + RETRY.leaseMs) } },
+      { sort: { nextAttemptAt: 1 }, new: true, projection: { _id: 1 } },
+    )
+      .lean<Pick<Scan, '_id'>>()
+      .exec();
+
+    return claimed?._id ?? null;
+  }
+
+  /**
+   * One sweep: claims and diagnoses up to `limit` due scans, one at a time.
+   *
+   * Sequential on purpose: when ml-service has just come back, a sweep that
+   * fired every due scan at once would be the thundering herd the jitter in
+   * `retryPolicy` exists to avoid.
+   */
+  async function runDueDiagnoses(limit = 20): Promise<SweepResult> {
+    const result: SweepResult = { claimed: 0, decided: 0, deferred: 0 };
+
+    for (let i = 0; i < limit; i += 1) {
+      const scanId = await claimDue();
+      if (scanId === null) {
+        break;
+      }
+      result.claimed += 1;
+
+      const updated = await diagnose(scanId);
+      if (updated && updated.status !== 'pending') {
+        result.decided += 1;
+      } else {
+        result.deferred += 1;
+      }
+    }
+    return result;
   }
 
   /**
@@ -178,7 +254,7 @@ export function createScanService({ storage, ml }: ScanServiceDeps) {
     return { scan: existing, created: false };
   }
 
-  return { save, getById, diagnose };
+  return { save, getById, diagnose, claimDue, runDueDiagnoses };
 }
 
 export type ScanService = ReturnType<typeof createScanService>;
@@ -205,23 +281,33 @@ async function ownedPlot(owner: Types.ObjectId, plotId: string): Promise<PlotFac
  * What each ML outcome does to a pending scan.
  *
  * `version` moves only when something the farmer can see changes. A deferred
- * attempt changes `attempts` and `lastError`, which are internal, so a device
- * holding this scan has nothing new to sync.
+ * attempt changes `attempts`, `lastError` and `nextAttemptAt`, which are
+ * internal, so a device holding this scan has nothing new to sync.
  */
-function outcomeUpdate(result: MlResult): UpdateQuery<Scan> {
+function outcomeUpdate(result: MlResult, nextAttemptAt: Date | null): UpdateQuery<Scan> {
   switch (result.kind) {
     case 'decision':
       return {
-        $set: { status: result.status, diagnosis: result.diagnosis, lastError: null },
+        $set: {
+          status: result.status,
+          diagnosis: result.diagnosis,
+          lastError: null,
+          nextAttemptAt: null,
+        },
         $inc: { attempts: 1, version: 1 },
       };
     case 'rejected':
       return {
-        $set: { status: 'rejected', rejectReason: result.reason.slice(0, 300), lastError: null },
+        $set: {
+          status: 'rejected',
+          rejectReason: result.reason.slice(0, 300),
+          lastError: null,
+          nextAttemptAt: null,
+        },
         $inc: { attempts: 1, version: 1 },
       };
     case 'unavailable':
-      return { $set: { lastError: result.error }, $inc: { attempts: 1 } };
+      return { $set: { lastError: result.error, nextAttemptAt }, $inc: { attempts: 1 } };
   }
 }
 

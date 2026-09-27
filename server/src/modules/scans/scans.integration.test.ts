@@ -372,7 +372,8 @@ describe('indexes', () => {
       deletedAt: 1,
       createdAt: -1,
     });
-    expect(byName.get('pending_queue')?.partialFilterExpression).toEqual({ status: 'pending' });
+    expect(byName.get('pending_due')?.key).toEqual({ status: 1, nextAttemptAt: 1 });
+    expect(byName.get('pending_due')?.partialFilterExpression).toEqual({ status: 'pending' });
     expect(byName.get('location_2dsphere')?.key).toEqual({ location: '2dsphere' });
   });
 });

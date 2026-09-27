@@ -20,7 +20,7 @@ import { CROP_CODES, type CropCode, type GeoPoint } from '@shared/types';
  *   pending ──ML down / timeout──▶ pending     (attempts++; retried later)
  *
  * `diagnosis` keeps the model's full answer even when escalated. The farmer
- * API hides the class in that case (`scan.service`), but officers and the
+ * API hides the class in that case (`scan.presenter`), but officers and the
  * Week 9 drift monitoring need what the model actually thought.
  *
  * `crop` is copied from the plot at capture time, not looked up later: a plot
@@ -30,6 +30,10 @@ import { CROP_CODES, type CropCode, type GeoPoint } from '@shared/types';
  * `capturedAt` is an instant (a `Date`), not a `YYYY-MM-DD` day. The day-string
  * rule in `docs/schema.md` is for farming days such as a sowing date; this is
  * the moment the shutter closed, and it may be hours before the upload.
+ *
+ * `nextAttemptAt` drives the retry sweep (`scan.service`): it says when a
+ * pending scan is due, and a worker pushes it forward as a lease when it
+ * claims the scan, so two workers never take the same one.
  */
 
 /** Mirrors `plotIdSchema`. */
@@ -91,9 +95,15 @@ export interface Scan {
   rejectReason: string | null;
   /** Diagnosis attempts made, successful or not. */
   attempts: number;
-  /** Last failure talking to the ML service. For logs and the retry worker. */
+  /** Last failure talking to the ML service. For logs and the retry sweep. */
   lastError: string | null;
-  /** Incremented on every write, including status changes and the soft delete. */
+  /**
+   * When the retry sweep may next try this scan. Also the claim lease: a
+   * worker pushes it forward as it takes the scan, so no other worker picks
+   * it up meanwhile. `null` once decided, or after the last attempt.
+   */
+  nextAttemptAt: Date | null;
+  /** Incremented on every write the farmer can see, including the soft delete. */
   version: number;
   deletedAt: Date | null;
   createdAt: Date;
@@ -187,6 +197,7 @@ const scanSchema = new Schema<Scan>(
     rejectReason: { type: String, default: null, maxlength: 300 },
     attempts: { type: Number, default: 0, min: 0 },
     lastError: { type: String, default: null, maxlength: 500 },
+    nextAttemptAt: { type: Date, default: null },
     version: { type: Number, default: 1, min: 1 },
     deletedAt: { type: Date, default: null },
   },
@@ -197,11 +208,11 @@ const scanSchema = new Schema<Scan>(
 //
 // The farmer's scan history: owner, live-or-deleted, newest first.
 scanSchema.index({ userId: 1, deletedAt: 1, createdAt: -1 }, { name: 'owner_live_recent' });
-// The retry worker (Day 22 Part B) looks only for pending scans, oldest first.
-// Partial, so the index holds the small pending set and not every scan ever.
+// The retry sweep: pending scans that are due, soonest first. Partial, so
+// the index holds only the small pending set and not every scan ever.
 scanSchema.index(
-  { status: 1, updatedAt: 1 },
-  { name: 'pending_queue', partialFilterExpression: { status: 'pending' } },
+  { status: 1, nextAttemptAt: 1 },
+  { name: 'pending_due', partialFilterExpression: { status: 'pending' } },
 );
 // Week 9 outbreak detection clusters scans by place.
 scanSchema.index({ location: '2dsphere' }, { name: 'location_2dsphere' });

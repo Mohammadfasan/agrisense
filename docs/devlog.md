@@ -754,3 +754,16 @@ real app with `vi.mock` for ML and a temp upload dir). Full suite: 387.
 - `tsconfig` uses `moduleResolution: "Node"` (deprecated in TS 6);
   migrate to `Node16` when upgrading TypeScript. VS Code pinned to the
   workspace TypeScript meanwhile.
+
+**End-to-end (real ml-service + real Node server + real photo)**
+
+- Upload → 201 → `diagnosed` maize_common_rust; heatmap identical to the
+  ml-service's own output (bytes unchanged through Node).
+- First run stayed `pending` with "ML_SERVICE_KEY is not configured":
+  the key was missing from server/.env. The scan was kept, not lost; after
+  adding the key and restarting, a replay diagnosed it (version 1 → 2).
+  Lesson: `tsx watch` does not reload `.env` — restart after env changes.
+- Node's fetch sends Content-Length for FormData, so ml-service's 411
+  guard is satisfied.
+- Added `server/scripts/devToken.ts` (dev-only, outside src/, refuses to
+  run in production). Use `for /f ... do @set` so CMD does not echo tokens.
