@@ -74,6 +74,9 @@ export const ErrorCode = {
    * /calendar/tasks/:id` in `docs/api-spec.md`.
    */
   CALENDAR_TASK_VERSION_CONFLICT: 'CALENDAR_TASK_VERSION_CONFLICT',
+  SCAN_NOT_FOUND: 'SCAN_NOT_FOUND',
+  SCAN_CONFLICT: 'SCAN_CONFLICT',
+  SCAN_IMAGE_INVALID: 'SCAN_IMAGE_INVALID',
 } as const;
 
 export type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode];
