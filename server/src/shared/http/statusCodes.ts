@@ -11,6 +11,7 @@ export const HttpStatus = {
   TOO_MANY_REQUESTS: 429,
   INTERNAL_SERVER_ERROR: 500,
   SERVICE_UNAVAILABLE: 503,
+  PAYLOAD_TOO_LARGE: 413,
 } as const;
 
 export type HttpStatusCode = (typeof HttpStatus)[keyof typeof HttpStatus];
