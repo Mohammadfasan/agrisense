@@ -2,6 +2,25 @@ import { useEffect, useRef, type ReactElement } from 'react';
 
 import type { ScanHeatmap } from '@/api/scans';
 
+/**
+ * Where the model looked, drawn over the photo.
+ *
+ * The server sends a tiny 7x7 grid (~300 bytes) instead of an image. It is
+ * painted into a small canvas and drawn scaled up with smoothing on, which
+ * blends the cells into soft blobs -- the same bilinear upsampling Grad-CAM
+ * figures use.
+ *
+ * The grid is padded with a transparent ring of cells before scaling. Without
+ * it, a hot cell on the grid's edge (a diseased leaf margin) is cut off in a
+ * hard straight line where the grid ends; with it, smoothing fades it out.
+ *
+ * Only the hotspots show: values below 0.35 are transparent. A photo washed
+ * faint red all over tells a farmer nothing.
+ *
+ * `region` places the grid on the photo. The model saw the centre 224/256 of
+ * the square we uploaded, so the grid covers [0.0625 .. 0.9375] of each side.
+ */
+
 const RESOLUTION = 512;
 const THRESHOLD = 0.35;
 const MAX_ALPHA = 190;
@@ -18,18 +37,20 @@ export function HeatmapOverlay({ heatmap }: { heatmap: ScanHeatmap }): ReactElem
       return;
     }
 
-    const small = document.createElement('canvas');
-    small.width = cols;
-    small.height = rows;
-    const smallContext = small.getContext('2d');
-    if (!smallContext) {
+    // One transparent cell of padding on every side.
+    const padded = document.createElement('canvas');
+    padded.width = cols + 2;
+    padded.height = rows + 2;
+    const paddedContext = padded.getContext('2d');
+    if (!paddedContext) {
       return;
     }
 
-    const pixels = smallContext.createImageData(cols, rows);
+    // New ImageData starts fully transparent, so the ring needs no drawing.
+    const pixels = paddedContext.createImageData(cols + 2, rows + 2);
     heatmap.grid.forEach((row, y) => {
       row.forEach((value, x) => {
-        const i = (y * cols + x) * 4;
+        const i = ((y + 1) * (cols + 2) + (x + 1)) * 4;
         const strength = value < THRESHOLD ? 0 : (value - THRESHOLD) / (1 - THRESHOLD);
         pixels.data[i] = 220; // red
         pixels.data[i + 1] = 38;
@@ -37,18 +58,22 @@ export function HeatmapOverlay({ heatmap }: { heatmap: ScanHeatmap }): ReactElem
         pixels.data[i + 3] = Math.round(strength * MAX_ALPHA);
       });
     });
-    smallContext.putImageData(pixels, 0, 0);
+    paddedContext.putImageData(pixels, 0, 0);
 
+    // The grid's own area, then grown by one cell each way for the padding.
     const [left, top, right, bottom] = heatmap.region;
+    const cellWidth = ((right - left) * RESOLUTION) / cols;
+    const cellHeight = ((bottom - top) * RESOLUTION) / rows;
+
     context.clearRect(0, 0, RESOLUTION, RESOLUTION);
     context.imageSmoothingEnabled = true;
     context.imageSmoothingQuality = 'high';
     context.drawImage(
-      small,
-      left * RESOLUTION,
-      top * RESOLUTION,
-      (right - left) * RESOLUTION,
-      (bottom - top) * RESOLUTION,
+      padded,
+      left * RESOLUTION - cellWidth,
+      top * RESOLUTION - cellHeight,
+      (right - left) * RESOLUTION + 2 * cellWidth,
+      (bottom - top) * RESOLUTION + 2 * cellHeight,
     );
   }, [heatmap]);
 
