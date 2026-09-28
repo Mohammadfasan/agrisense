@@ -1,11 +1,20 @@
 import type { CalendarTaskRecord } from '@agrisense/shared';
 import { useQuery } from '@tanstack/react-query';
-import { CalendarDays, CalendarPlus, ChevronDown, MapPin, Pencil, Sprout } from 'lucide-react';
+import {
+  CalendarDays,
+  CalendarPlus,
+  ChevronDown,
+  MapPin,
+  Pencil,
+  Sprout,
+  ScanLine,
+} from 'lucide-react';
 import { useEffect, useState, type ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 
 import { calendarKeys, fetchPlotTasks } from '@/api/calendar';
+import { isEnabled } from '@/app/features';
 // Deep imports rather than the calendar barrel, which would pull the task
 // sheet -- react-hook-form with it -- into this chunk.
 import { ACTIVITY_META, taskTitle } from '@/features/calendar/activity';
@@ -127,6 +136,15 @@ function PlotDetail({ plotId }: { plotId: string }): ReactElement {
       </Link>
 
       <PlotHeader plot={plot} cropName={cropName} />
+      {isEnabled('scan') && (
+        <Link
+          to={`/scan?plotId=${plot._id}`}
+          className="btn-primary min-h-touch-lg w-full text-base"
+        >
+          <ScanLine className="h-6 w-6" aria-hidden />
+          {t('plot.scanAction', 'Check a leaf from this plot')}
+        </Link>
+      )}
       <PlotSeason plot={plot} />
     </section>
   );
