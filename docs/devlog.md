@@ -849,3 +849,43 @@ native speaker against Department of Agriculture terminology.
 - Scan response schema is client-local; move to `@agrisense/shared`.
 - 422 validation errors show the "server" message; distinguish later.
 - Photo for a past scan is not served yet (history screen will need it).
+
+## Day 24 — ml-service in Docker, Week 5 complete
+
+**Built**
+
+- `ml-service/Dockerfile`: python:3.12-slim, service requirements only (no
+  torch) → 442 MB image. Non-root user. The pinned model is fetched from the
+  GitHub Release at start-up into a named volume (`agrisense-ml-models`) and
+  verified by SHA256; a mismatch stops the container. `exec uvicorn` as PID 1,
+  so `docker stop` shuts down gracefully. Healthcheck on `/ready`, defined once
+  in the Dockerfile.
+- `.dockerignore`: no `.env` (the key comes from compose at run time), no
+  training code, datasets or model files.
+- `docker-compose.yml`: ml-service uses the new image, `env_file` for
+  `INTERNAL_API_KEY`, the model volume; the old read-only `models/` bind mount
+  and its `/health` check are gone. All ports bound to 127.0.0.1.
+
+**Found**
+
+- A two-week-old ml-service container from Week 1 was still running on port
+  8000 with pre-Day-19 code. It explained the Day 22 "404 from port 8000":
+  whenever the local uvicorn stopped, Node reached the old container. The ML
+  client had classified the 404 as `unavailable`, so no photo was lost.
+- MongoDB (default dev password) and Redis (no password) were published on
+  0.0.0.0 — reachable by anyone on the same Wi-Fi. Now localhost only.
+- Its healthcheck used `/health` (alive), so it reported healthy while unable
+  to diagnose. Healthy now means `/ready` (model loaded and verified).
+
+**Verified** — first start downloads and verifies the model; restart logs
+"present, hash OK - skipped"; a scan from the browser reaches the containerised
+ml-service (`POST /v1/diagnose 200`).
+
+## Week 5 summary
+
+Photo on the phone → square 512 px JPEG → Node (auth, magic bytes, storage,
+idempotent create) → ml-service (ONNX, in-graph CAM, calibrated asymmetric
+policy) → result in Tamil / Sinhala / English with a heatmap. ML down → scan
+kept as pending and diagnosed automatically by the BullMQ retry sweep. The
+production pipeline reproduces the Week 4 test numbers exactly.
+Tests: ml-service 19, server 403.
