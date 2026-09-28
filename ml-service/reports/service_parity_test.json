@@ -1,0 +1,29 @@
+{
+  "result": {
+    "n_photos": 2130,
+    "escalated_count": 120,
+    "escalated_rate": 0.056338028169014086,
+    "accuracy_diagnosed": 0.9900497512437811,
+    "errors_passed": 20,
+    "dangerous_passed": 7,
+    "borderline_photos": [],
+    "latency_ms": {
+      "mean": 9.17,
+      "p95": 10.2,
+      "max": 314.0
+    }
+  },
+  "expected": {
+    "source": "policy_test.json",
+    "exact": true,
+    "errors_passed": 20,
+    "dangerous_passed": 7,
+    "escalated_count": 120
+  },
+  "checks": {
+    "errors_passed": true,
+    "dangerous_passed": true,
+    "escalated": true
+  },
+  "passed": true
+}

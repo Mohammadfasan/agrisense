@@ -24,6 +24,17 @@ export {
   type FarmerProfileDocument,
 } from './farmerProfile.model';
 export { PlotModel, type Plot, type PlotDocument } from './plot.model';
+export {
+  ScanModel,
+  SCAN_STATUSES,
+  type Scan,
+  type ScanCandidate,
+  type ScanDiagnosis,
+  type ScanDocument,
+  type ScanHeatmap,
+  type ScanPhoto,
+  type ScanStatus,
+} from './scan.model';
 export { OtpModel, OTP_PURPOSES, type Otp, type OtpDocument, type OtpPurpose } from './otp.model';
 export {
   RefreshTokenModel,

@@ -1,14 +1,21 @@
-.venv/
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.ruff_cache/
+# Local environment and caches
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+
+# Secrets: provided at run time by docker compose, never baked into the image
 .env
-tests/
-training/
-models/*/v*/
-# Offline only, and `data/` is the whole corpus -- it would be sent to the
-# daemon as build context on every build and baked into the layer.
-scripts/
-data/
-reports/
+
+# Not needed to serve: training, data, results, tests
+training
+data
+reports
+tests
+notebooks
+
+# Model files: fetched from the GitHub Release at start-up (ADR-00Y)
+artifacts
+*.onnx
+*.pt

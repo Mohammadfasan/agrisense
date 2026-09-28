@@ -4,11 +4,14 @@ import path from 'node:path';
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
+/** The server package root (`server/`). Relative paths in config resolve from here. */
+const SERVER_ROOT = path.resolve(__dirname, '../..');
+
 /**
  * Load `.env` from the server package root before anything reads `process.env`.
  * Real environment variables always win over the file (dotenv never overrides).
  */
-const envFile = path.resolve(__dirname, '../../.env');
+const envFile = path.join(SERVER_ROOT, '.env');
 if (existsSync(envFile)) {
   dotenv.config({ path: envFile });
 }
@@ -86,6 +89,34 @@ const envSchema = z.object({
     .string()
     .regex(/^\+[1-9]\d{0,3}$/, 'must be a dialling code like "+94"')
     .default('+94'),
+
+  // ---- ML service (disease diagnosis) ----
+  /**
+   * Base URL of ml-service. `127.0.0.1` rather than `localhost`: on Windows,
+   * `localhost` can resolve to IPv6 first while uvicorn listens on IPv4 only.
+   * In Docker this becomes the service name, e.g. `http://ml-service:8000`.
+   */
+  ML_SERVICE_URL: z.string().url().default('http://127.0.0.1:8000'),
+  /**
+   * Shared secret sent as `X-Internal-Key`; the same value as ml-service's
+   * `INTERNAL_API_KEY`. Optional outside production, where a missing key just
+   * leaves scans `pending`; required in production by the refine below.
+   */
+  ML_SERVICE_KEY: z.string().min(32, 'must be at least 32 characters').optional(),
+  /** Give up on one diagnosis call after this long. The scan stays `pending`. */
+  ML_TIMEOUT_MS: z.coerce.number().int().positive().default(8_000),
+
+  // ---- Scans ----
+  /** Largest photo accepted. Keep at or below ml-service's MAX_UPLOAD_BYTES. */
+  SCAN_MAX_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(32 * 1024 * 1024)
+    .default(8 * 1024 * 1024),
+  /** Where scan photos are stored. A relative path resolves from the server root. */
+  UPLOAD_DIR: z.string().min(1).default('uploads'),
+  SCAN_RETRY_INTERVAL_MS: z.coerce.number().int().min(5_000).default(30_000),
 });
 
 export type RawEnv = z.infer<typeof envSchema>;
@@ -95,7 +126,7 @@ const parsed = envSchema
     if (value.NODE_ENV !== 'production') {
       return;
     }
-    for (const key of ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET'] as const) {
+    for (const key of ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET', 'ML_SERVICE_KEY'] as const) {
       if (value[key] === undefined) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -148,6 +179,22 @@ export const env = {
    * not be able to turn real logins into console output.
    */
   otpDevMode: raw.OTP_DEV_MODE && raw.NODE_ENV !== 'production',
+  ml: {
+    /** Without a trailing slash, so callers can append `/v1/diagnose` safely. */
+    url: raw.ML_SERVICE_URL.replace(/\/+$/, ''),
+    /**
+     * `undefined` only outside production (the refine guarantees it there).
+     * With no key, the diagnosis call is skipped and the scan stays `pending`.
+     */
+    key: raw.ML_SERVICE_KEY,
+    timeoutMs: raw.ML_TIMEOUT_MS,
+  },
+  scans: {
+    maxBytes: raw.SCAN_MAX_BYTES,
+    /** Absolute, so it does not depend on the directory the server started from. */
+    uploadDir: path.resolve(SERVER_ROOT, raw.UPLOAD_DIR),
+    retryIntervalMs: raw.SCAN_RETRY_INTERVAL_MS,
+  },
 } as const;
 
 export type Env = typeof env;

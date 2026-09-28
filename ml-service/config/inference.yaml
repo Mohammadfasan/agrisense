@@ -13,3 +13,16 @@ calibration:
 thresholds:
   base: 0.70      # below this: no diagnosis, escalate to an officer
   healthy: 0.90   # a "healthy" answer needs extra confidence (missed disease is the costliest error)
+
+# ADR-00Y: what the service downloads. Model files come from a GitHub
+# Release, pinned by SHA256. `model:` above is for training scripts only.
+release:
+  version: "1.0.0"
+  onnx:
+    file: agrisense_mobilenetv2.onnx
+    url: https://github.com/Mohammadfasan/agrisense/releases/download/model-v1.0.0/agrisense_mobilenetv2.onnx
+    sha256: 8466ade3bd2c3e0fb0c7d476704d6fc0209901ed3f3070366d5d91b99c05b28a
+  sidecar:
+    file: agrisense_mobilenetv2.json
+    url: https://github.com/Mohammadfasan/agrisense/releases/download/model-v1.0.0/agrisense_mobilenetv2.json
+    sha256: 48d8bc686628bb151145abae76610c623f97d5c1fd11ceccc1f9d7e44ceddfff

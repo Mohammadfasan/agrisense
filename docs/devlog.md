@@ -620,3 +620,272 @@ None.
 ### Week 4 complete
 
 Final model: fine-tuned MobileNetV2, test macro-F1 0.957.
+
+## Day 19 — ML service foundation (Week 5)
+
+**Decisions**
+
+- ADR: ONNX Runtime only in ml-service. The head is GAP + one linear layer,
+  so Grad-CAM on features[-1] equals CAM. The export wrapper outputs
+  `logits` and `cams` (12×7×7) from one forward pass, so there are no
+  gradients and no PyTorch in the service.
+- ADR: model files delivered as a GitHub Release (`model-v1.0.0`), pinned by
+  SHA256 in `config/inference.yaml` (`release:` block).
+- Retired the file-based model registry: the loaded model reports itself.
+
+**Evidence**
+
+- Export: wrapper vs model 3.8e-06; ONNX Runtime vs PyTorch 1.05e-05 (logits),
+  4.0e-05 (cams).
+- Parity on 24 real val images (2 per class): heatmap correlation ≥ 0.99999999,
+  max diff 3.3e-06, same prediction 24/24.
+- Sidecar-only preprocessing is bit-identical to the Week 4 val transform (diff 0.0).
+- fetch_model.py tested: fresh download, idempotent skip, wrong pinned hash
+  (stops, leaves nothing), corrupted local file (re-downloads), 404 (fails fast).
+
+**Built**
+
+- `training/onnx_wrapper.py`, `training/export_onnx.py`, `training/cam_parity.py`
+- `scripts/fetch_model.py`
+- `app/core/inference_config.py`: validated config; healthy < base is rejected
+- `app/services/disease_model.py`: 4-step verified load, not-ready with reason
+- `/ready` (200 / 503 + reason), `/models/disease`
+- Requirements split: service has no torch (`requirements-train.txt` for training)
+
+**Found and fixed**
+
+- Old `services/disease.py` resized straight to 224 (training used 256 bicubic
+  → center crop 224). It would have silently changed predictions.
+- `.env` had `MODELS_DIR=models`, which overrode the new code default.
+- On Windows use `127.0.0.1`, not `localhost` (IPv6 resolution).
+
+**Tech debt**
+
+- Export uses the legacy TorchScript exporter (`dynamo=False`); migrate when removed.
+
+## Day 20 — Inference core (Week 5)
+
+**Built**
+
+- `app/services/preprocess.py`: upload bytes -> tensor. Checks format
+  (JPEG/PNG/WebP), pixel count before decode (decompression bombs, 50 MP cap),
+  minimum 64 px, truncated files. Applies EXIF orientation.
+  `InvalidImageError` carries a message safe to show the user.
+- `app/services/policy.py`: softmax(logits / T) + asymmetric thresholds
+  (base 0.70, healthy 0.90). One vectorised `evaluate()` used by both the
+  service and the parity script. Crop masking NOT applied (raised dangerous
+  errors 7 -> 8 on test; needs thresholds re-tuned on val first).
+- `app/services/heatmap.py`: ReLU + normalise the in-graph CAM into a 7x7
+  grid (~300 bytes) plus the photo region it covers
+  [0.0625, 0.0625, 0.9375, 0.9375]. Only for disease classes. The client
+  draws the overlay (Day 23).
+- `DiseaseModel.predict()`: preprocess -> ONNX -> policy -> heatmap.
+
+**Evidence**
+
+- cam_parity now calls the service's preprocess: diff 0.0, PASS.
+- Policy unit check: the same confidence 0.866 gives "diagnosed" for a
+  disease and "escalated" for a healthy class.
+- Service parity on the full test set (2,130 photos), production code only:
+  escalated 120 / errors 20 / dangerous 7 — identical to policy_test.json.
+  0 borderline photos. Accuracy on diagnosed 0.990.
+- Latency (CPU, ONNX Runtime): mean ~9 ms, p95 ~10 ms after warm-up.
+
+## Day 21 — Diagnose endpoint and tests (Week 5)
+
+**Built**
+
+- `POST /v1/diagnose` (multipart field `image`). Status codes:
+  200 decision · 400 not a usable photo (message safe for the farmer) ·
+  401 bad/missing key · 411 no Content-Length · 413 too large ·
+  422 no image field · 503 model not loaded.
+- Internal auth: `X-Internal-Key` shared with the Node API. `SecretStr`,
+  required at startup (no default), placeholder and short keys rejected,
+  constant-time comparison (`secrets.compare_digest`).
+- Upload limit in two layers: middleware rejects by Content-Length before
+  the body is read; the endpoint re-checks the real byte count.
+- The response always includes the top guess and top-3, even when
+  escalated: Node decides what the farmer sees, officers see what the
+  model thought. Heatmap only for disease classes.
+- `requirements-dev.txt` (pytest, httpx), `pytest.ini`.
+
+**Tests** — 19 passing in < 1 s: every status code above, disease vs
+healthy response shape, the asymmetric threshold rule (same 0.866 →
+diagnosed for disease, escalated for healthy), and config validation
+(missing / placeholder / short key, healthy < base).
+
+**Security note** — rotated the dev internal key after it was pasted into
+a chat. Rule: never share `.env` contents; print lengths, not values.
+
+## Day 22 Part A — Scans on the Node server (Week 5)
+
+**Built** (`server/src/modules/scans/`, `models/scan.model.ts`)
+
+- `Scan` model: client UUID `_id`, written once; `status` pending →
+  diagnosed | escalated | rejected. Full ML answer stored (officer review,
+  Week 9 drift). Crop copied from the plot at capture time. Indexes:
+  owner/live/recent, partial `pending_queue`, `location` 2dsphere.
+- `PUT /api/v1/scans/:id` (multipart `photo` + `capturedAt`, optional
+  `plotId`, `longitude`/`latitude`) and `GET /api/v1/scans/:id`.
+- Photo storage behind a `PhotoStorage` interface (local disk now, S3
+  later): magic-byte type check (client MIME ignored), strict key pattern +
+  root check against path traversal, temp-file + rename.
+- ML client: timeout, `X-Internal-Key`, response validated with Zod;
+  every answer mapped to decision / rejected / unavailable. Never throws.
+- Env: `ML_SERVICE_URL`, `ML_SERVICE_KEY` (required in production),
+  `ML_TIMEOUT_MS`, `SCAN_MAX_BYTES`, `UPLOAD_DIR`.
+
+**Decisions**
+
+- ML down → scan saved as `pending`, never lost; a replay of a pending
+  upload retries the diagnosis for free.
+- Replay with the same photo → 200 with the stored scan, model NOT called
+  again. Same id with a different photo → 409 `SCAN_CONFLICT`.
+- Farmer view hides the diagnosis unless `status === 'diagnosed'`: the
+  confidence ADR is enforced on the server, not trusted to the client.
+- `version` bumps only on changes the farmer can see (not on a deferred
+  attempt), so Week 6 sync does not churn.
+
+**Tests** — 32 new (6 storage, 10 ML client, 16 integration through the
+real app with `vi.mock` for ML and a temp upload dir). Full suite: 387.
+
+**Tech debt**
+
+- `tsconfig` uses `moduleResolution: "Node"` (deprecated in TS 6);
+  migrate to `Node16` when upgrading TypeScript. VS Code pinned to the
+  workspace TypeScript meanwhile.
+
+**End-to-end (real ml-service + real Node server + real photo)**
+
+- Upload → 201 → `diagnosed` maize_common_rust; heatmap identical to the
+  ml-service's own output (bytes unchanged through Node).
+- First run stayed `pending` with "ML_SERVICE_KEY is not configured":
+  the key was missing from server/.env. The scan was kept, not lost; after
+  adding the key and restarting, a replay diagnosed it (version 1 → 2).
+  Lesson: `tsx watch` does not reload `.env` — restart after env changes.
+- Node's fetch sends Content-Length for FormData, so ml-service's 411
+  guard is satisfied.
+- Added `server/scripts/devToken.ts` (dev-only, outside src/, refuses to
+  run in production). Use `for /f ... do @set` so CMD does not echo tokens.
+
+## Day 22 Part B — Automatic retry for pending scans (Week 5)
+
+**Design**
+
+- MongoDB is the only source of truth for what to retry. `nextAttemptAt`
+  says when a pending scan is due; claiming pushes it forward as a lease in
+  one atomic `findOneAndUpdate`, so any number of workers can sweep without
+  taking the same scan, and a crashed worker's scan comes back when its
+  lease runs out.
+- Exponential backoff 30 s → 1 h cap, ±20% jitter (no thundering herd after
+  an outage), stop after 20 attempts (~a day) and log at error level.
+- Scheduling only: BullMQ job scheduler when REDIS_URL is set (one schedule
+  cluster-wide via an idempotent scheduler id); in-process interval
+  otherwise. Redis losing jobs loses nothing — the next sweep finds every
+  due scan in MongoDB.
+- Graceful shutdown: the sweep checks `isDraining()` between scans; HTTP and
+  the scheduler stop in parallel, then MongoDB closes.
+
+**Found by running it**
+
+- Redis down → ioredis reconnect errors flooded the log (60+ lines in 15 s)
+  with EMPTY messages (Node's AggregateError when IPv6 and IPv4 both fail).
+  Now: one log line per outage, one on recovery; `describe()` unwraps
+  AggregateError and shows codes like ECONNREFUSED.
+- Added a Queue 'error' listener: an EventEmitter with no 'error' listener
+  throws, so a Redis blip would have shut the whole server down.
+
+**End-to-end** — ml-service stopped, upload → `pending`; ml-service
+restarted; ~50 s later the BullMQ sweep logged `claimed 1, decided 1` and
+the scan was `diagnosed` (tomato_late_blight, 0.91, version 2) with no
+action from the farmer. The deferred attempt had got a 404 from another
+process on port 8000 — classified as `unavailable`, so the photo was kept.
+
+**Tests** — 403 total (sweep 8: due timing, backoff, two concurrent workers
+never double-claim, lease expiry, give-up, limit; scheduler 4 with fake
+timers: interval, no overlap, survives failure, stop waits).
+
+## Day 23 — Client scan screen (Week 5)
+
+**Flow** (`client/src/features/scan/`): guide (4 photo tips) → camera or
+gallery → square preview → upload → result. Held as one `useReducer` state
+union, so "uploading" and "failed" can never both be true.
+
+**Decisions**
+
+- Native camera (`<input capture>`), not a live `getUserMedia` view: reliable
+  on old Android phones, gallery for free. The square preview shows exactly
+  what the model will see.
+- Centre-square crop to 512 px JPEG q0.85 on a canvas: 3–6 MB → ~60–120 KB
+  for rural 3G; no stretching at the server's 256×256 resize (the Day 20
+  concern); re-encoding strips all EXIF, including the GPS of where the photo
+  was taken.
+- Scan UUID minted when the photo is taken; a failed upload returns to the
+  preview with the same id, so retries are idempotent (verified: offline →
+  online → one 201). Online-first; the Week 2 Dexie scan scaffold predates
+  the server model and is redesigned in Week 6.
+- Pending scans polled 5 s → 10 s → 20 s for 2 minutes, then "come back later".
+- Confidence shown in words ("Very likely" ≥ 0.95, "Likely"), never "100%":
+  the model is wrong sometimes, and a percentage reads as a guarantee.
+- Advice limited to safe field practice; no product names or doses (that is
+  the agriculture officer's job). Late blight gets an urgent banner.
+- Heatmap: 7×7 grid painted with a transparent 1-cell border and upscaled
+  with smoothing; values < 0.35 hidden. Localises the region, not lesions.
+- Scan button on the plot screen passes `plotId`, so the crop is recorded.
+
+**Found by running it**
+
+- axios converted the FormData to JSON because the instance default is
+  `application/json` → 422 "photo required". Fixed with an explicit
+  `multipart/form-data` header (axios then lets the browser add the boundary).
+- The heatmap showed a hard rectangle where the grid ends; fixed by padding.
+
+**Translations** — Tamil and Sinhala for every scan string, disease names
+and advice. Sinhala, and disease terms in both languages, need review by a
+native speaker against Department of Agriculture terminology.
+
+**Tech debt**
+
+- Scan response schema is client-local; move to `@agrisense/shared`.
+- 422 validation errors show the "server" message; distinguish later.
+- Photo for a past scan is not served yet (history screen will need it).
+
+## Day 24 — ml-service in Docker, Week 5 complete
+
+**Built**
+
+- `ml-service/Dockerfile`: python:3.12-slim, service requirements only (no
+  torch) → 442 MB image. Non-root user. The pinned model is fetched from the
+  GitHub Release at start-up into a named volume (`agrisense-ml-models`) and
+  verified by SHA256; a mismatch stops the container. `exec uvicorn` as PID 1,
+  so `docker stop` shuts down gracefully. Healthcheck on `/ready`, defined once
+  in the Dockerfile.
+- `.dockerignore`: no `.env` (the key comes from compose at run time), no
+  training code, datasets or model files.
+- `docker-compose.yml`: ml-service uses the new image, `env_file` for
+  `INTERNAL_API_KEY`, the model volume; the old read-only `models/` bind mount
+  and its `/health` check are gone. All ports bound to 127.0.0.1.
+
+**Found**
+
+- A two-week-old ml-service container from Week 1 was still running on port
+  8000 with pre-Day-19 code. It explained the Day 22 "404 from port 8000":
+  whenever the local uvicorn stopped, Node reached the old container. The ML
+  client had classified the 404 as `unavailable`, so no photo was lost.
+- MongoDB (default dev password) and Redis (no password) were published on
+  0.0.0.0 — reachable by anyone on the same Wi-Fi. Now localhost only.
+- Its healthcheck used `/health` (alive), so it reported healthy while unable
+  to diagnose. Healthy now means `/ready` (model loaded and verified).
+
+**Verified** — first start downloads and verifies the model; restart logs
+"present, hash OK - skipped"; a scan from the browser reaches the containerised
+ml-service (`POST /v1/diagnose 200`).
+
+## Week 5 summary
+
+Photo on the phone → square 512 px JPEG → Node (auth, magic bytes, storage,
+idempotent create) → ml-service (ONNX, in-graph CAM, calibrated asymmetric
+policy) → result in Tamil / Sinhala / English with a heatmap. ML down → scan
+kept as pending and diagnosed automatically by the BullMQ retry sweep. The
+production pipeline reproduces the Week 4 test numbers exactly.
+Tests: ml-service 19, server 403.
