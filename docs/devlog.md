@@ -804,3 +804,48 @@ process on port 8000 — classified as `unavailable`, so the photo was kept.
 **Tests** — 403 total (sweep 8: due timing, backoff, two concurrent workers
 never double-claim, lease expiry, give-up, limit; scheduler 4 with fake
 timers: interval, no overlap, survives failure, stop waits).
+
+## Day 23 — Client scan screen (Week 5)
+
+**Flow** (`client/src/features/scan/`): guide (4 photo tips) → camera or
+gallery → square preview → upload → result. Held as one `useReducer` state
+union, so "uploading" and "failed" can never both be true.
+
+**Decisions**
+
+- Native camera (`<input capture>`), not a live `getUserMedia` view: reliable
+  on old Android phones, gallery for free. The square preview shows exactly
+  what the model will see.
+- Centre-square crop to 512 px JPEG q0.85 on a canvas: 3–6 MB → ~60–120 KB
+  for rural 3G; no stretching at the server's 256×256 resize (the Day 20
+  concern); re-encoding strips all EXIF, including the GPS of where the photo
+  was taken.
+- Scan UUID minted when the photo is taken; a failed upload returns to the
+  preview with the same id, so retries are idempotent (verified: offline →
+  online → one 201). Online-first; the Week 2 Dexie scan scaffold predates
+  the server model and is redesigned in Week 6.
+- Pending scans polled 5 s → 10 s → 20 s for 2 minutes, then "come back later".
+- Confidence shown in words ("Very likely" ≥ 0.95, "Likely"), never "100%":
+  the model is wrong sometimes, and a percentage reads as a guarantee.
+- Advice limited to safe field practice; no product names or doses (that is
+  the agriculture officer's job). Late blight gets an urgent banner.
+- Heatmap: 7×7 grid painted with a transparent 1-cell border and upscaled
+  with smoothing; values < 0.35 hidden. Localises the region, not lesions.
+- Scan button on the plot screen passes `plotId`, so the crop is recorded.
+
+**Found by running it**
+
+- axios converted the FormData to JSON because the instance default is
+  `application/json` → 422 "photo required". Fixed with an explicit
+  `multipart/form-data` header (axios then lets the browser add the boundary).
+- The heatmap showed a hard rectangle where the grid ends; fixed by padding.
+
+**Translations** — Tamil and Sinhala for every scan string, disease names
+and advice. Sinhala, and disease terms in both languages, need review by a
+native speaker against Department of Agriculture terminology.
+
+**Tech debt**
+
+- Scan response schema is client-local; move to `@agrisense/shared`.
+- 422 validation errors show the "server" message; distinguish later.
+- Photo for a past scan is not served yet (history screen will need it).
