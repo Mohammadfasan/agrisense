@@ -4,7 +4,9 @@ services:
     container_name: agrisense-mongo
     restart: unless-stopped
     ports:
-      - '${MONGO_PORT:-27017}:27017'
+      # 127.0.0.1 only: reachable from this machine, not from everyone on the
+      # same Wi-Fi. The default password below is a development one.
+      - '127.0.0.1:${MONGO_PORT:-27017}:27017'
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-agrisense}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-agrisense}
@@ -24,7 +26,8 @@ services:
     restart: unless-stopped
     command: ['redis-server', '--appendonly', 'yes']
     ports:
-      - '${REDIS_PORT:-6379}:6379'
+      # 127.0.0.1 only: this Redis has no password.
+      - '127.0.0.1:${REDIS_PORT:-6379}:6379'
     volumes:
       - redis-data:/data
     healthcheck:
@@ -41,29 +44,28 @@ services:
     container_name: agrisense-ml
     restart: unless-stopped
     ports:
-      - '${ML_PORT:-8000}:8000'
+      # 127.0.0.1 only: only the Node API should call this service.
+      - '127.0.0.1:${ML_PORT:-8000}:8000'
+    # INTERNAL_API_KEY lives here, never in the image (.dockerignore excludes
+    # .env). Compose refuses to start if the file is missing.
+    env_file:
+      - ./ml-service/.env
     environment:
+      # These win over the same names in the env_file.
       ENVIRONMENT: ${NODE_ENV:-development}
       LOG_LEVEL: ${ML_LOG_LEVEL:-INFO}
-      MODELS_DIR: /srv/models
+      MODELS_DIR: /models
     volumes:
-      # Mount trained artifacts in rather than baking them into the image.
-      - ./ml-service/models:/srv/models:ro
-    healthcheck:
-      test:
-        [
-          'CMD',
-          'python',
-          '-c',
-          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4).status == 200 else 1)",
-        ]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 15s
+      # The model is fetched from the GitHub Release on first start (ADR-00Y)
+      # and kept here, so later starts only verify its hash.
+      - ml-models:/models
+    # The healthcheck is defined once, in the Dockerfile: it calls /ready,
+    # which is 200 only when the model is loaded and verified.
 
 volumes:
   mongo-data:
     name: agrisense-mongo-data
   redis-data:
     name: agrisense-redis-data
+  ml-models:
+    name: agrisense-ml-models
