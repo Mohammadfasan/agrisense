@@ -2,6 +2,21 @@ import { z } from 'zod';
 
 import { api } from '@/shared/api/client';
 
+/**
+ * The Day 22 scan endpoints, as typed calls.
+ *
+ * Same arrangement as `api/calendar.ts`: plain functions, read through
+ * react-query, every response parsed before it is returned. The shape mirrors
+ * the server's FARMER view (`scan.presenter.ts`): when a scan is escalated,
+ * `diagnosis` is null by the server's own rule, so this client cannot show a
+ * diagnosis the model was not confident about even by mistake.
+ *
+ * The schema lives here for now. It belongs in `@agrisense/shared` next to
+ * `plotSchema`, so the server's integration tests can parse its own responses
+ * with it -- noted as tech debt for Week 6, when the offline store needs the
+ * same shape.
+ */
+
 export const SCAN_STATUSES = ['pending', 'diagnosed', 'escalated', 'rejected'] as const;
 export type ScanStatus = (typeof SCAN_STATUSES)[number];
 
@@ -83,8 +98,8 @@ export interface UploadedScan {
 }
 
 /**
- * `PUT /scans/:id`, multipart. axios sees the FormData and leaves the
- * Content-Type to the browser, which adds the multipart boundary.
+ * `PUT /scans/:id`, multipart. The Content-Type is set explicitly below; see
+ * the comment there for why the instance's JSON default must be overridden.
  */
 export async function uploadScan(input: ScanUpload): Promise<UploadedScan> {
   const form = new FormData();
@@ -99,6 +114,11 @@ export async function uploadScan(input: ScanUpload): Promise<UploadedScan> {
   }
 
   const response = await api.put<unknown>(`/scans/${input.id}`, form, {
+    // Overrides the instance's JSON default. With `application/json` still in
+    // place, axios would serialise this FormData into a JSON object and the
+    // photo would never leave the phone. In the browser axios then drops this
+    // header again and lets the browser write it with the multipart boundary.
+    headers: { 'Content-Type': 'multipart/form-data' },
     // A photo on rural 3G takes longer than a JSON call. The compressed photo
     // is ~100 KB, so this is generous, not optimistic.
     timeout: 60_000,
